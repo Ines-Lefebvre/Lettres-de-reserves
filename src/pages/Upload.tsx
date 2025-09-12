@@ -7,6 +7,7 @@ const Upload: React.FC = () => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = React.useState<string>('');
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -29,21 +30,41 @@ const Upload: React.FC = () => {
       formData.append('filename', selectedFile.name);
       formData.append('filesize', selectedFile.size.toString());
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
+      console.log('Envoi vers webhook:', {
+        url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822',
+        filename: selectedFile.name,
+        filesize: selectedFile.size
+      });
+      
         method: 'POST',
         body: formData,
+        headers: {
+          // Ne pas définir Content-Type pour FormData, le navigateur le fait automatiquement
+        },
+      });
+
+      console.log('Réponse webhook:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       if (response.ok) {
+        const responseData = await response.text();
+        console.log('Données de réponse:', responseData);
         setUploadStatus('success');
         // Rediriger vers la page de réponse après succès
         setTimeout(() => {
           window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
         }, 2000);
       } else {
-        throw new Error('Erreur lors de l\'envoi');
+        const errorText = await response.text();
+        console.error('Erreur webhook:', errorText);
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Erreur:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Erreur inconnue');
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
@@ -151,8 +172,14 @@ const Upload: React.FC = () => {
                     </p>
                   </div>
                   <p className="text-red-700 text-sm mt-2">
-                    Veuillez réessayer ou nous contacter si le problème persiste.
+                    {errorMessage || 'Veuillez réessayer ou nous contacter si le problème persiste.'}
                   </p>
+                  <details className="mt-2">
+                    <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
+                    <p className="text-red-600 text-xs mt-1 font-mono">
+                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822
+                    </p>
+                  </details>
                 </div>
               )}
 
