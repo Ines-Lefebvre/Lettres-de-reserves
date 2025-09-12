@@ -4,6 +4,7 @@ import { ChevronUp, Upload, Menu, X } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import UploadPage from './pages/Upload';
+import WebhookResponsePage from './pages/WebhookResponse';
 
 const HomePage: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -396,6 +397,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/upload" element={<UploadPage />} />
+      <Route path="/response" element={<WebhookResponsePage />} />
     </Routes>
   );
 }
