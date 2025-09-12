@@ -39,19 +39,22 @@ const Upload: React.FC = () => {
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
         method: 'POST',
         body: formData,
-        headers: {
-          // Ne pas définir Content-Type pour FormData, le navigateur le fait automatiquement
-        },
       });
 
       console.log('Réponse webhook:', {
         status: response.status,
         statusText: response.statusText,
-        ok: response.ok
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (response.ok) {
-        const responseData = await response.text();
+        let responseData;
+        try {
+          responseData = await response.json();
+        } catch {
+          responseData = await response.text();
+        }
         console.log('Données de réponse:', responseData);
         setUploadStatus('success');
         // Rediriger vers la page de réponse après succès
@@ -59,13 +62,20 @@ const Upload: React.FC = () => {
           window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
         }, 2000);
       } else {
-        const errorText = await response.text();
+        let errorText;
+        try {
+          const errorJson = await response.json();
+          errorText = errorJson.message || errorJson.error || JSON.stringify(errorJson);
+        } catch {
+          errorText = await response.text();
+        }
         console.error('Erreur webhook:', errorText);
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        throw new Error(`Erreur ${response.status}: ${errorText || response.statusText}`);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Erreur inconnue');
+      const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
+      setErrorMessage(errorMsg);
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
@@ -175,10 +185,26 @@ const Upload: React.FC = () => {
                   <p className="text-red-700 text-sm mt-2">
                     {errorMessage || 'Veuillez réessayer ou nous contacter si le problème persiste.'}
                   </p>
+                  {errorMessage.includes('500') && (
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-yellow-800 text-sm font-semibold">💡 Erreur serveur détectée</p>
+                      <p className="text-yellow-700 text-xs mt-1">
+                        Le webhook N8N rencontre un problème. Vérifiez :
+                      </p>
+                      <ul className="text-yellow-700 text-xs mt-1 ml-4 list-disc">
+                        <li>Que le workflow N8N est actif</li>
+                        <li>Que l'URL du webhook est correcte</li>
+                        <li>Les logs N8N pour plus de détails</li>
+                      </ul>
+                    </div>
+                  )}
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
                       Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822
+                    </p>
+                    <p className="text-red-600 text-xs mt-1">
+                      Ouvrez la console (F12) pour voir les logs détaillés
                     </p>
                   </details>
                 </div>
