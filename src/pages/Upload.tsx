@@ -250,7 +250,7 @@ const Upload: React.FC = () => {
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa
+                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
