@@ -4,11 +4,46 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 const Upload: React.FC = () => {
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      console.log('Fichier sélectionné:', file.name);
-      // Logique de téléversement à implémenter
+      setSelectedFile(file);
+      setUploadStatus('idle');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    setUploadStatus('idle');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('timestamp', new Date().toISOString());
+      formData.append('filename', selectedFile.name);
+      formData.append('filesize', selectedFile.size.toString());
+
+      const response = await fetch('https://webhook.site/your-webhook-url', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        setUploadStatus('success');
+      } else {
+        throw new Error('Erreur lors de l\'envoi');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      setUploadStatus('error');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -48,14 +83,34 @@ const Upload: React.FC = () => {
               {/* Upload Zone */}
               <div className="mb-8">
                 <label htmlFor="file-upload" className="block">
-                  <div className="border-2 border-dashed border-brand-accent border-opacity-50 rounded-lg p-8 text-center hover:border-brand-accent hover:bg-brand-light hover:bg-opacity-30 transition-all duration-300 cursor-pointer group">
+                  <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 cursor-pointer group ${
+                    selectedFile 
+                      ? 'border-brand-accent bg-brand-light bg-opacity-30' 
+                      : 'border-brand-accent border-opacity-50 hover:border-brand-accent hover:bg-brand-light hover:bg-opacity-30'
+                  }`}>
                     <UploadIcon className="w-12 h-12 text-brand-accent mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
-                    <p className="text-lg font-semibold text-brand-text-dark mb-2">
-                      Cliquez pour téléverser votre fichier
-                    </p>
-                    <p className="text-gray-500 font-body">
-                      ou glissez-déposez votre PDF ici
-                    </p>
+                    {selectedFile ? (
+                      <div>
+                        <p className="text-lg font-semibold text-brand-text-dark mb-2">
+                          Fichier sélectionné : {selectedFile.name}
+                        </p>
+                        <p className="text-gray-500 font-body">
+                          Taille : {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                        <p className="text-sm text-brand-accent mt-2">
+                          Cliquez pour changer de fichier
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-lg font-semibold text-brand-text-dark mb-2">
+                          Cliquez pour téléverser votre fichier
+                        </p>
+                        <p className="text-gray-500 font-body">
+                          ou glissez-déposez votre PDF ici
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <input
                     id="file-upload"
@@ -66,6 +121,37 @@ const Upload: React.FC = () => {
                   />
                 </label>
               </div>
+
+              {/* Status Messages */}
+              {uploadStatus === 'success' && (
+                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                    <p className="text-green-800 font-semibold">
+                      Fichier envoyé avec succès !
+                    </p>
+                  </div>
+                  <p className="text-green-700 text-sm mt-2">
+                    Vous recevrez votre lettre de réserves sous 24h.
+                  </p>
+                </div>
+              )}
+
+              {uploadStatus === 'error' && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                    <p className="text-red-800 font-semibold">
+                      Erreur lors de l'envoi
+                    </p>
+                  </div>
+                  <p className="text-red-700 text-sm mt-2">
+                    Veuillez réessayer ou nous contacter si le problème persiste.
+                  </p>
+                </div>
+              )}
 
               {/* Info Box */}
               <div className="bg-brand-light bg-opacity-50 rounded-lg p-4 border-l-4 border-brand-accent">
@@ -85,14 +171,17 @@ const Upload: React.FC = () => {
               {/* Action Button */}
               <div className="text-center mt-8">
                 <button
+                  onClick={handleSubmit}
                   className="bg-brand-accent hover:bg-opacity-90 text-white px-8 py-4 rounded-lg font-headline font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={true}
+                  disabled={!selectedFile || isUploading}
                 >
-                  Envoyer
+                  {isUploading ? 'Envoi en cours...' : 'Envoyer'}
                 </button>
-                <p className="text-sm text-gray-500 mt-2 font-body">
-                  Le bouton s'activera après téléversement du fichier
-                </p>
+                {!selectedFile && (
+                  <p className="text-sm text-gray-500 mt-2 font-body">
+                    Sélectionnez un fichier pour activer le bouton
+                  </p>
+                )}
               </div>
             </div>
           </div>
