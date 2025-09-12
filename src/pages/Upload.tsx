@@ -29,23 +29,30 @@ const Upload: React.FC = () => {
       formData.append('timestamp', new Date().toISOString());
       formData.append('filename', selectedFile.name);
       formData.append('filesize', selectedFile.size.toString());
+      formData.append('filetype', selectedFile.type);
+      formData.append('user_agent', navigator.userAgent);
       
       console.log('Envoi vers webhook:', {
         url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822',
         filename: selectedFile.name,
-        filesize: selectedFile.size
+        filesize: selectedFile.size,
+        filetype: selectedFile.type,
+        formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
       });
       
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
         method: 'POST',
         body: formData,
+        // Pas de Content-Type header - laissons le navigateur le définir automatiquement pour FormData
       });
 
       console.log('Réponse webhook:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
+        headers: Object.fromEntries(response.headers.entries()),
+        url: response.url,
+        redirected: response.redirected
       });
 
       if (response.ok) {
@@ -53,7 +60,9 @@ const Upload: React.FC = () => {
         try {
           responseData = await response.json();
         } catch {
-          responseData = await response.text();
+          const textResponse = await response.text();
+          responseData = textResponse;
+          console.log('Réponse texte brute:', textResponse);
         }
         console.log('Données de réponse:', responseData);
         setUploadStatus('success');
@@ -62,14 +71,24 @@ const Upload: React.FC = () => {
           window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
         }, 2000);
       } else {
-        let errorText;
+        let errorText = '';
+        let errorDetails = {};
         try {
           const errorJson = await response.json();
+          errorDetails = errorJson;
           errorText = errorJson.message || errorJson.error || JSON.stringify(errorJson);
         } catch {
-          errorText = await response.text();
+          const textError = await response.text();
+          errorText = textError || `Erreur HTTP ${response.status}`;
+          console.log('Réponse d\'erreur texte brute:', textError);
         }
-        console.error('Erreur webhook:', errorText);
+        console.error('Erreur webhook complète:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText,
+          errorDetails,
+          headers: Object.fromEntries(response.headers.entries())
+        });
         throw new Error(`Erreur ${response.status}: ${errorText || response.statusText}`);
       }
     } catch (error) {
@@ -79,6 +98,36 @@ const Upload: React.FC = () => {
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Fonction de test du webhook
+  const testWebhook = async () => {
+    try {
+      console.log('Test du webhook sans fichier...');
+      const testData = new FormData();
+      testData.append('test', 'true');
+      testData.append('timestamp', new Date().toISOString());
+      
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
+        method: 'POST',
+        body: testData,
+      });
+      
+      console.log('Test webhook - Réponse:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      const responseText = await response.text();
+      console.log('Test webhook - Contenu:', responseText);
+      
+      alert(`Test webhook: ${response.status} - ${response.ok ? 'Succès' : 'Erreur'}`);
+    } catch (error) {
+      console.error('Erreur test webhook:', error);
+      alert(`Erreur test: ${error.message}`);
     }
   };
 
@@ -214,13 +263,20 @@ const Upload: React.FC = () => {
               <div className="bg-brand-light bg-opacity-50 rounded-lg p-4 border-l-4 border-brand-accent">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-brand-accent mt-0.5 flex-shrink-0" />
-                  <div className="font-body text-sm text-brand-text-dark">
+                      Le webhook N8N rencontre un problème de traitement :
                     <p className="font-semibold mb-1">Informations importantes :</p>
                     <ul className="space-y-1 text-gray-700">
-                      <li>• Votre déclaration doit être au format PDF</li>
-                      <li>• Les données sont traitées de manière confidentielle</li>
-                      <li>• Vous recevrez votre lettre de réserves sous 24h</li>
+                      <li>Vérifiez les logs d'exécution dans N8N</li>
+                      <li>Le nœud de traitement de fichier fonctionne-t-il ?</li>
+                      <li>Y a-t-il des erreurs dans les nœuds suivants ?</li>
+                      <li>Testez avec un fichier plus petit</li>
                     </ul>
+                    <button
+                      onClick={testWebhook}
+                      className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs"
+                    >
+                      Tester webhook sans fichier
+                    </button>
                   </div>
                 </div>
               </div>
@@ -237,6 +293,9 @@ const Upload: React.FC = () => {
                 {!selectedFile && (
                   <p className="text-sm text-gray-500 mt-2 font-body">
                     Sélectionnez un fichier pour activer le bouton
+                  </p>
+                  <p className="text-red-600 text-xs mt-1">
+                    Fichier: {selectedFile?.name} ({selectedFile?.type})
                   </p>
                 )}
               </div>
