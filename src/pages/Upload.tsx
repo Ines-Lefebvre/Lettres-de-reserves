@@ -307,7 +307,6 @@ const Upload: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       </main>
 
       <Footer />
