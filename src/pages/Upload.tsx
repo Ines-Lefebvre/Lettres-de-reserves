@@ -263,7 +263,10 @@ const Upload: React.FC = () => {
               <div className="bg-brand-light bg-opacity-50 rounded-lg p-4 border-l-4 border-brand-accent">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-brand-accent mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-gray-700 mb-2">
                       Le webhook N8N rencontre un problème de traitement :
+                    </p>
                     <p className="font-semibold mb-1">Informations importantes :</p>
                     <ul className="space-y-1 text-gray-700">
                       <li>Vérifiez les logs d'exécution dans N8N</li>
@@ -277,6 +280,7 @@ const Upload: React.FC = () => {
                     >
                       Tester webhook sans fichier
                     </button>
+                  </div>
                   </div>
                 </div>
               </div>
