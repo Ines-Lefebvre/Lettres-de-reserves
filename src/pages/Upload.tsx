@@ -22,6 +22,7 @@ const Upload: React.FC = () => {
 
     setIsUploading(true);
     setUploadStatus('idle');
+   setErrorMessage('');
 
     try {
       const formData = new FormData();
@@ -33,18 +34,26 @@ const Upload: React.FC = () => {
       formData.append('user_agent', navigator.userAgent);
       
       console.log('Envoi vers webhook:', {
-        url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa',
+       url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat',
         filename: selectedFile.name,
         filesize: selectedFile.size,
         filetype: selectedFile.type,
         formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
       });
       
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
+     console.log('Tentative de connexion au webhook...');
+     
+     const controller = new AbortController();
+     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+     
+     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
         method: 'POST',
         body: formData,
+       signal: controller.signal,
         // Pas de Content-Type header - laissons le navigateur le définir automatiquement pour FormData
       });
+     
+     clearTimeout(timeoutId);
 
       console.log('Réponse webhook:', {
         status: response.status,
@@ -93,7 +102,18 @@ const Upload: React.FC = () => {
       }
     } catch (error) {
       console.error('Erreur:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
+     let errorMsg = 'Erreur inconnue';
+     
+     if (error instanceof Error) {
+       if (error.name === 'AbortError') {
+         errorMsg = 'Timeout: Le serveur met trop de temps à répondre (>30s)';
+       } else if (error.message === 'Failed to fetch') {
+         errorMsg = 'Impossible de contacter le serveur. Vérifiez votre connexion internet ou contactez le support.';
+       } else {
+         errorMsg = error.message;
+       }
+     }
+     
       setErrorMessage(errorMsg);
       setUploadStatus('error');
     } finally {
@@ -236,21 +256,23 @@ const Upload: React.FC = () => {
                   </p>
                   {errorMessage.includes('500') && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-yellow-800 text-sm font-semibold">💡 Erreur serveur détectée</p>
+                     <p className="text-yellow-800 text-sm font-semibold">💡 Diagnostic d'erreur</p>
                       <p className="text-yellow-700 text-xs mt-1">
-                        Le webhook N8N rencontre un problème. Vérifiez :
+                       Causes possibles :
                       </p>
                       <ul className="text-yellow-700 text-xs mt-1 ml-4 list-disc">
-                        <li>Que le workflow N8N est actif</li>
-                        <li>Que l'URL du webhook est correcte</li>
-                        <li>Les logs N8N pour plus de détails</li>
+                       <li>Problème de connexion internet</li>
+                       <li>Serveur N8N indisponible</li>
+                       <li>Workflow N8N inactif</li>
+                       <li>Problème CORS</li>
+                       <li>Fichier trop volumineux</li>
                       </ul>
                     </div>
                   )}
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa
+                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
