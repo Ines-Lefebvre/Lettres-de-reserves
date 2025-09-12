@@ -30,6 +30,7 @@ const Upload: React.FC = () => {
       formData.append('filesize', selectedFile.size.toString());
 
       const response = await fetch('https://webhook.site/your-webhook-url', {
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
         method: 'POST',
         body: formData,
       });
