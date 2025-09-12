@@ -291,12 +291,14 @@ const Upload: React.FC = () => {
                   {isUploading ? 'Envoi en cours...' : 'Envoyer'}
                 </button>
                 {!selectedFile && (
-                  <p className="text-sm text-gray-500 mt-2 font-body">
-                    Sélectionnez un fichier pour activer le bouton
-                  </p>
-                  <p className="text-red-600 text-xs mt-1">
-                    Fichier: {selectedFile?.name} ({selectedFile?.type})
-                  </p>
+                  <>
+                    <p className="text-sm text-gray-500 mt-2 font-body">
+                      Sélectionnez un fichier pour activer le bouton
+                    </p>
+                    <p className="text-red-600 text-xs mt-1">
+                      Fichier: {selectedFile?.name} ({selectedFile?.type})
+                    </p>
+                  </>
                 )}
               </div>
             </div>
