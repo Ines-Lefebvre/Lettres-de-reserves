@@ -35,6 +35,10 @@ const Upload: React.FC = () => {
 
       if (response.ok) {
         setUploadStatus('success');
+        // Rediriger vers la page de réponse après succès
+        setTimeout(() => {
+          window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
+        }, 2000);
       } else {
         throw new Error('Erreur lors de l\'envoi');
       }
