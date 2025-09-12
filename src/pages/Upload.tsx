@@ -40,7 +40,6 @@ const Upload: React.FC = () => {
         formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
       });
       
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa', {
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
         method: 'POST',
         body: formData,
@@ -110,7 +109,6 @@ const Upload: React.FC = () => {
       testData.append('test', 'true');
       testData.append('timestamp', new Date().toISOString());
       
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
         method: 'POST',
         body: testData,
@@ -252,7 +250,7 @@ const Upload: React.FC = () => {
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat
+                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
@@ -283,7 +281,6 @@ const Upload: React.FC = () => {
                       Tester webhook sans fichier
                     </button>
                   </div>
-                  </div>
                 </div>
               </div>
 
@@ -309,6 +306,7 @@ const Upload: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
       </main>
 
       <Footer />
