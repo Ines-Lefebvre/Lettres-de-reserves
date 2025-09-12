@@ -33,14 +33,14 @@ const Upload: React.FC = () => {
       formData.append('user_agent', navigator.userAgent);
       
       console.log('Envoi vers webhook:', {
-        url: 'https://n8n.srv833062.hstgr.cloud/webhook/dc2b297e-19c2-44cc-9e68-93d06abe4822',
+        url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa',
         filename: selectedFile.name,
         filesize: selectedFile.size,
         filetype: selectedFile.type,
         formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
       });
       
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa', {
         method: 'POST',
         body: formData,
         // Pas de Content-Type header - laissons le navigateur le définir automatiquement pour FormData
@@ -250,7 +250,7 @@ const Upload: React.FC = () => {
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook/dc2b297e-19c2-44cc-9e68-93d06abe4822
+                      Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/98399c76-cd40-418a-bbf3-c795f1bb86fa
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
