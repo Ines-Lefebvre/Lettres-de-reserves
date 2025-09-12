@@ -50,6 +50,11 @@ const Upload: React.FC = () => {
         method: 'POST',
         body: formData,
        signal: controller.signal,
+        mode: 'cors',
+        credentials: 'omit',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+        },
         // Pas de Content-Type header - laissons le navigateur le définir automatiquement pour FormData
       });
      
@@ -132,6 +137,11 @@ const Upload: React.FC = () => {
       const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/dc2b297e-19c2-44cc-9e68-93d06abe4822', {
         method: 'POST',
         body: testData,
+        mode: 'cors',
+        credentials: 'omit',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+        },
       });
       
       console.log('Test webhook - Réponse:', {
