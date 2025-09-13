@@ -46,7 +46,7 @@ const Upload: React.FC = () => {
      const controller = new AbortController();
      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
      
-     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/Mistral-OCR', {
+     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
         method: 'POST',
         body: formData,
        signal: controller.signal,
@@ -134,7 +134,7 @@ const Upload: React.FC = () => {
       testData.append('test', 'true');
       testData.append('timestamp', new Date().toISOString());
       
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/Mistral-OCR', {
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat', {
         method: 'POST',
         body: testData,
         mode: 'cors',
@@ -282,7 +282,7 @@ const Upload: React.FC = () => {
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook/Mistral-OCR
+                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-dat
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
