@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test N8N - Réception des données</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 10px;
+        }
+
+        .status-success {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        .status-warning {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .status-error {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item strong {
+            color: #2d3748;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .info-item span {
+            color: #4a5568;
+            font-family: 'Courier New', monospace;
+        }
+
+        .json-container {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .json-container pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4a5568;
+            transform: translateY(-2px);
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #edf2f7;
+            border-radius: 8px;
+        }
+
+        .auto-refresh input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .timestamp {
+            color: #718096;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f56565;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Test N8N</h1>
+            <p>Interface de test pour la réception des données du workflow N8N</p>
+        </div>
+
+        <div class="section">
+            <h2>📊 Statut de l'endpoint</h2>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="checkEndpointStatus()">
+                    <span id="status-loading" class="loading" style="display: none;"></span>
+                    Vérifier le statut
+                </button>
+                <button class="btn btn-secondary" onclick="refreshData()">
+                    <span id="refresh-loading" class="loading" style="display: none;"></span>
+                    Actualiser les données
+                </button>
+            </div>
+            
+            <div class="auto-refresh">
+                <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()">
+                <label for="autoRefresh">Auto-actualisation (10 secondes)</label>
+                <span id="countdown" class="timestamp"></span>
+            </div>
+
+            <div id="endpoint-status">
+                <span class="status-indicator status-warning">En attente de vérification</span>
+                <span class="timestamp">Cliquez sur "Vérifier le statut" pour tester l'endpoint</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📥 Dernier résultat reçu</h2>
+            <div id="last-result-content">
+                <div class="no-data">
+                    <p>🔍 Aucune donnée chargée</p>
+                    <p class="timestamp">Cliquez sur "Actualiser les données" pour vérifier</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Informations techniques</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Endpoint principal:</strong>
+                    <span>/api/n8n-results</span>
+                </div>
+                <div class="info-item">
+                    <strong>Endpoint de récupération:</strong>
+                    <span>/api/get-last-result</span>
+                </div>
+                <div class="info-item">
+                    <strong>Méthode acceptée:</strong>
+                    <span>POST (données) / GET (récupération)</span>
+                </div>
+                <div class="info-item">
+                    <strong>Format attendu:</strong>
+                    <span>JSON</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let autoRefreshInterval = null;
+        let countdownInterval = null;
+        let countdownSeconds = 10;
+
+        // Vérification du statut de l'endpoint
+        async function checkEndpointStatus() {
+            const statusElement = document.getElementById('endpoint-status');
+            const loadingElement = document.getElementById('status-loading');
+            
+            loadingElement.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/get-last-result');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusElement.innerHTML = `
+                        <span class="status-indicator status-success">✅ Endpoint fonctionnel</span>
+                        <span class="timestamp">Dernière vérification: ${new Date().toLocaleString('fr-FR')}</span>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusElement.innerHTML = `
+                    <span class="status-indicator status-error">❌ Endpoint inaccessible</span>
+                    <span class="timestamp">Erreur: ${error.message}</span>
+                `;
+            } finally {
+                loadingElement.style.display = 'none';
+            }
+        }
+
+        // Actualisation des données
+        async function refreshData() {
+            const contentElement = document.getElementById('last-result-content');
+            const loadingElement = document.getElementById('refresh-loading');
+            
+            loadingElement.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/get-last-result');
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${data.message || 'Erreur inconnue'}`);
+                }
+                
+                if (!data.hasData) {
+                    contentElement.innerHTML = `
+                        <div class="no-data">
+                            <p>📭 Aucune donnée reçue de N8N</p>
+                            <p class="timestamp">${data.message}</p>
+                        </div>
+                    `;
+                } else {
+                    displayLastResult(data);
+                }
+                
+            } catch (error) {
+                contentElement.innerHTML = `
+                    <div class="error-message">
+                        <strong>❌ Erreur lors de la récupération:</strong>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loadingElement.style.display = 'none';
+            }
+        }
+
+        // Affichage du dernier résultat
+        function displayLastResult(data) {
+            const contentElement = document.getElementById('last-result-content');
+            
+            contentElement.innerHTML = `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Session ID:</strong>
+                        <span>${data.summary.sessionId}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Statut:</strong>
+                        <span>${data.summary.status}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Employeur:</strong>
+                        <span>${data.summary.employeur}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Victime:</strong>
+                        <span>${data.summary.victime}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Complétude:</strong>
+                        <span>${data.summary.completude}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Type formulaire:</strong>
+                        <span>${data.summary.typeFormulaire}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Fichier source:</strong>
+                        <span>${data.summary.sourceFile}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Reçu il y a:</strong>
+                        <span>${data.elapsedTime}</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 25px;">
+                    <h3 style="margin-bottom: 15px; color: #4a5568;">📄 Données JSON complètes:</h3>
+                    <div class="json-container">
+                        <pre>${JSON.stringify(data.fullData, null, 2)}</pre>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <p class="timestamp">
+                        📅 Reçu le: ${new Date(data.receivedAt).toLocaleString('fr-FR')} | 
+                        🔄 Récupéré le: ${new Date(data.retrievedAt).toLocaleString('fr-FR')}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Gestion de l'auto-actualisation
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            const countdownElement = document.getElementById('countdown');
+            
+            if (checkbox.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+                countdownElement.textContent = '';
+            }
+        }
+
+        function startAutoRefresh() {
+            countdownSeconds = 10;
+            updateCountdown();
+            
+            autoRefreshInterval = setInterval(() => {
+                refreshData();
+                countdownSeconds = 10;
+            }, 10000);
+            
+            countdownInterval = setInterval(() => {
+                countdownSeconds--;
+                updateCountdown();
+                if (countdownSeconds <= 0) {
+                    countdownSeconds = 10;
+                }
+            }, 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        function updateCountdown() {
+            const countdownElement = document.getElementById('countdown');
+            countdownElement.textContent = `Prochaine actualisation dans ${countdownSeconds}s`;
+        }
+
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Interface de test N8N chargée');
+            checkEndpointStatus();
+            refreshData();
+        });
+
+        // Nettoyage lors de la fermeture de la page
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>
