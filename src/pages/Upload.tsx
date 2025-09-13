@@ -296,22 +296,13 @@ const Upload: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-brand-accent mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-gray-700 mb-2">
-                     Informations de diagnostic :
-                    </p>
-                   <p className="font-semibold mb-1">En cas de problème :</p>
+                    <p className="font-semibold mb-1">En cas de problème :</p>
                     <ul className="space-y-1 text-gray-700">
                      <li>• Vérifiez votre connexion internet</li>
                      <li>• Assurez-vous que le fichier est au format PDF</li>
                      <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
                      <li>• Contactez le support si le problème persiste</li>
                     </ul>
-                    <button
-                      onClick={testWebhook}
-                     className="mt-3 bg-brand-accent hover:bg-opacity-90 text-white px-4 py-2 rounded text-sm font-semibold transition-all duration-300"
-                    >
-                     Tester la connexion
-                    </button>
                   </div>
                 </div>
               </div>
@@ -329,9 +320,6 @@ const Upload: React.FC = () => {
                   <>
                     <p className="text-sm text-gray-500 mt-2 font-body">
                       Sélectionnez un fichier pour activer le bouton
-                    </p>
-                    <p className="text-red-600 text-xs mt-1">
-                      Fichier: {selectedFile?.name} ({selectedFile?.type})
                     </p>
                   </>
                 )}
