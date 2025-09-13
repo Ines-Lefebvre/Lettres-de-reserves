@@ -297,20 +297,20 @@ const Upload: React.FC = () => {
                   <AlertCircle className="w-5 h-5 text-brand-accent mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-gray-700 mb-2">
-                      Le webhook N8N rencontre un problème de traitement :
+                     Informations de diagnostic :
                     </p>
-                    <p className="font-semibold mb-1">Informations importantes :</p>
+                   <p className="font-semibold mb-1">En cas de problème :</p>
                     <ul className="space-y-1 text-gray-700">
-                      <li>Vérifiez les logs d'exécution dans N8N</li>
-                      <li>Le nœud de traitement de fichier fonctionne-t-il ?</li>
-                      <li>Y a-t-il des erreurs dans les nœuds suivants ?</li>
-                      <li>Testez avec un fichier plus petit</li>
+                     <li>• Vérifiez votre connexion internet</li>
+                     <li>• Assurez-vous que le fichier est au format PDF</li>
+                     <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
+                     <li>• Contactez le support si le problème persiste</li>
                     </ul>
                     <button
                       onClick={testWebhook}
-                      className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-xs"
+                     className="mt-3 bg-brand-accent hover:bg-opacity-90 text-white px-4 py-2 rounded text-sm font-semibold transition-all duration-300"
                     >
-                      Tester webhook sans fichier
+                     Tester la connexion
                     </button>
                   </div>
                 </div>
