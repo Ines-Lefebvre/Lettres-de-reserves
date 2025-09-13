@@ -34,7 +34,7 @@ const Upload: React.FC = () => {
       formData.append('user_agent', navigator.userAgent);
       
       console.log('Envoi vers webhook:', {
-       url: 'https://n8n.srv833062.hstgr.cloud/webhook-test/reservat-test',
+       url: 'https://n8n.srv833062.hstgr.cloud/webhook/test-simple',
         filename: selectedFile.name,
         filesize: selectedFile.size,
         filetype: selectedFile.type,
@@ -46,7 +46,7 @@ const Upload: React.FC = () => {
      const controller = new AbortController();
      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
      
-     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/reservat-test', {
+     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/test-simple', {
         method: 'POST',
         body: formData,
        signal: controller.signal,
@@ -282,7 +282,7 @@ const Upload: React.FC = () => {
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/reservat-test
+                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook/test-simple
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
