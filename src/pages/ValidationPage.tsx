@@ -705,49 +705,6 @@ const ValidationPage: React.FC = () => {
 
     return (
       <div className="space-y-8">
-        {/* Statistiques */}
-        <div className="bg-surface-muted rounded-lg p-6">
-          <h3 className="font-headline text-lg font-semibold text-text-primary mb-4">
-            Statistiques de validation
-          </h3>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-secondary mb-2">
-                {completionRate}%
-              </div>
-              <p className="text-text-muted">Taux de completion</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-3xl font-bold text-secondary mb-2">
-                {completedFieldsCount}/{requiredFieldsCount}
-              </div>
-              <p className="text-text-muted">Champs obligatoires</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-3xl font-bold text-secondary mb-2">
-                {answeredQuestionsCount}/{requiredQuestionsCount}
-              </div>
-              <p className="text-text-muted">Questions obligatoires</p>
-            </div>
-          </div>
-          
-          {/* Barre de progression */}
-          <div className="mt-6">
-            <div className="flex justify-between text-sm text-text-muted mb-2">
-              <span>Progression globale</span>
-              <span>{completionRate}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-secondary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${completionRate}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
 
         {/* Résumé des données */}
         <div className="bg-surface-muted rounded-lg p-6">
