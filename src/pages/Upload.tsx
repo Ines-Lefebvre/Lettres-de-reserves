@@ -226,7 +226,12 @@ const Upload: React.FC = () => {
               {/* Status Messages */}
               <div aria-live="polite" aria-atomic="true">
               {uploadStatus === 'success' && (
-                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div 
+                  ref={statusMessageRef}
+                  className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4" 
+                  role="status"
+                  tabIndex={-1}
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                       <span className="text-white text-xs">✓</span>
@@ -242,7 +247,12 @@ const Upload: React.FC = () => {
               )}
 
               {uploadStatus === 'error' && (
-                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                <div 
+                  ref={errorMessageRef}
+                  className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" 
+                  role="alert"
+                  tabIndex={-1}
+                >
                   <div className="flex items-center gap-3">
                     <AlertCircle className="w-5 h-5 text-red-500" />
                     <p className="text-red-800 font-semibold">
@@ -250,12 +260,7 @@ const Upload: React.FC = () => {
                     </p>
                   </div>
                   <p className="text-red-700 text-sm mt-2">
-                  <div 
-                    ref={statusMessageRef}
-                    className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4" 
-                    role="status"
-                    tabIndex={-1}
-                  >
+                    {errorMessage}
                   </p>
                   {(errorMessage.includes('500') || errorMessage.includes('Erreur de connexion')) && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -267,19 +272,14 @@ const Upload: React.FC = () => {
                   )}
                 </div>
               )}
+              </div>
 
               {/* Info Box */}
               <div className="bg-brand-light bg-opacity-50 rounded-lg p-4 border-l-4 border-brand-accent">
                 <div className="flex items-start gap-3">
-                  <div 
-                    ref={errorMessageRef}
-                    className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" 
-                    role="alert"
-                    tabIndex={-1}
-                  >
                   <div>
                     <p className="font-semibold mb-1">En cas de problème :</p>
-                    <ul className="space-y-1 text-gray-700">
+                    <ul className="space-y-1 text-gray-800">
                       <li>• Vérifiez votre connexion internet</li>
                       <li>• Assurez-vous que le fichier est au format PDF</li>
                       <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
@@ -296,19 +296,16 @@ const Upload: React.FC = () => {
                   ref={submitButtonRef}
                   className="bg-brand-accent hover:bg-opacity-90 text-white px-8 py-4 rounded-lg font-headline font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!selectedFile || isUploading}
-                >
                   aria-busy={isUploading}
                   aria-describedby={!selectedFile ? "button-help-text" : undefined}
+                >
                   {isUploading ? 'Envoi en cours...' : 'Envoyer'}
                 </button>
-                    <ul className="space-y-1 text-gray-800">
-                  <>
-                    <p className="text-sm text-gray-500 mt-2 font-body">
-                    <p id="button-help-text" className="text-sm text-gray-700 mt-2 font-body">
-                    </p>
-                  </>
+                {!selectedFile && (
+                  <p id="button-help-text" className="text-sm text-gray-700 mt-2 font-body">
+                    Veuillez sélectionner un fichier avant d'envoyer
+                  </p>
                 )}
-              </div>
               </div>
             </div>
           </div>
