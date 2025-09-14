@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
             <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight">
               <span className="text-brand-accent">Protégez</span> votre entreprise
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-brand-text-light font-body leading-relaxed max-w-4xl mx-auto">
+            <p className="text-xl md:text-2xl mb-8 text-gray-200 font-body leading-relaxed max-w-4xl mx-auto">
               Une lettre de réserve signée par un avocat spécialisé en accident du travail & maladie professionnelle, 
               <span className="text-brand-accent font-semibold"> prête en urgence</span> pour éviter des milliers d'euros de surcoûts.
             </p>
@@ -90,7 +90,7 @@ const HomePage: React.FC = () => {
       <section className="bg-brand-light py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6">
+            <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 text-brand-text-dark">
               <span className="text-brand-accent">Le vrai coût</span> de l'inaction
             </h2>
           </div>
@@ -99,25 +99,25 @@ const HomePage: React.FC = () => {
             <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
               <div className="text-3xl font-bold text-brand-accent mb-2">95%</div>
               <p className="text-brand-text-dark font-body">des accidents reconnus automatiquement sans réserves</p>
-              <p className="text-sm text-gray-500 mt-2">(CPAM, 2024)</p>
+              <p className="text-sm text-gray-700 mt-2">(CPAM, 2024)</p>
             </div>
             
             <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
               <div className="text-3xl font-bold text-brand-accent mb-2">+35%</div>
               <p className="text-brand-text-dark font-body">d'augmentation moyenne du taux cotisation AT/MP</p>
-              <p className="text-sm text-gray-500 mt-2">(URSSAF, 2023)</p>
+              <p className="text-sm text-gray-700 mt-2">(URSSAF, 2023)</p>
             </div>
             
             <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
               <div className="text-3xl font-bold text-brand-accent mb-2">18 000€</div>
               <p className="text-brand-text-dark font-body">de coût moyen direct par accident</p>
-              <p className="text-sm text-gray-500 mt-2">(Assurance Maladie, 2024)</p>
+              <p className="text-sm text-gray-700 mt-2">(Assurance Maladie, 2024)</p>
             </div>
             
             <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
               <div className="text-3xl font-bold text-brand-accent mb-2">5 ans</div>
               <p className="text-brand-text-dark font-body">de surcotisations possibles</p>
-              <p className="text-sm text-gray-500 mt-2">(Carsat, 2023)</p>
+              <p className="text-sm text-gray-700 mt-2">(Carsat, 2023)</p>
             </div>
           </div>
           
@@ -146,7 +146,7 @@ const HomePage: React.FC = () => {
                 className={`px-6 py-3 rounded-md font-headline font-semibold transition-all duration-300 ${
                   activeTab === 'sans'
                     ? 'bg-brand-light text-brand-text-dark'
-                    : 'text-gray-600 hover:text-brand-text-dark'
+                    : 'text-gray-700 hover:text-brand-text-dark'
                 }`}
               >
                 Sans lettre de réserves
@@ -156,7 +156,7 @@ const HomePage: React.FC = () => {
                 className={`px-6 py-3 rounded-md font-headline font-semibold transition-all duration-300 ${
                   activeTab === 'avec'
                     ? 'bg-brand-dark text-brand-white border-2 border-brand-accent'
-                    : 'text-gray-600 hover:text-brand-text-dark'
+                    : 'text-gray-700 hover:text-brand-text-dark'
                 }`}
               >
                 Avec lettre de réserves
@@ -168,10 +168,10 @@ const HomePage: React.FC = () => {
           <div className="bg-brand-white rounded-lg shadow-lg p-8 mb-12 min-h-[300px]">
             {activeTab === 'sans' && (
               <div className="animate-fade-in">
-                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center">
+                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center" id="tab-sans-title">
                   La réalité sans protection
                 </h3>
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-3xl mx-auto" role="tabpanel" aria-labelledby="tab-sans-title">
                   <ul className="space-y-4 text-lg font-body text-brand-text-dark">
                     <li className="flex items-start">
                       <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
@@ -196,10 +196,10 @@ const HomePage: React.FC = () => {
 
             {activeTab === 'avec' && (
               <div className="animate-fade-in">
-                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center">
+                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center" id="tab-avec-title">
                   Votre défense immédiate
                 </h3>
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-3xl mx-auto" role="tabpanel" aria-labelledby="tab-avec-title">
                   <ul className="space-y-4 text-lg font-body text-brand-text-dark">
                     <li className="flex items-start">
                       <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
@@ -251,7 +251,7 @@ const HomePage: React.FC = () => {
               <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
               <div className="text-brand-accent font-semibold">
                 — Claire Dupont, Gérante<br />
-                <span className="text-sm text-brand-text-light">Menuiserie Dupont (10 salariés)</span>
+                <span className="text-sm text-gray-300">Menuiserie Dupont (10 salariés)</span>
               </div>
             </div>
             
@@ -266,7 +266,7 @@ const HomePage: React.FC = () => {
               <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
               <div className="text-brand-accent font-semibold">
                 — Jean Martin, Directeur<br />
-                <span className="text-sm text-brand-text-light">Transports Martin (53 salariés)</span>
+                <span className="text-sm text-gray-300">Transports Martin (53 salariés)</span>
               </div>
             </div>
             
@@ -281,7 +281,7 @@ const HomePage: React.FC = () => {
               <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
               <div className="text-brand-accent font-semibold">
                 — Franck Lapuyade, Président<br />
-                <span className="text-sm text-brand-text-light">Atexya SAS</span>
+                <span className="text-sm text-gray-300">Atexya SAS</span>
               </div>
             </div>
           </div>
@@ -289,7 +289,7 @@ const HomePage: React.FC = () => {
           <div className="flex justify-center gap-8">
             <div className="text-center">
               <div className="text-4xl font-bold text-brand-accent mb-2">96%</div>
-              <p className="text-brand-text-light">clients satisfaits</p>
+              <p className="text-gray-300">clients satisfaits</p>
             </div>
           </div>
         </div>
@@ -368,7 +368,8 @@ const HomePage: React.FC = () => {
           <CircularCTA size="small" />
           <button 
             onClick={handleCTAClick}
-            className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-headline font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+            className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-headline font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-brand-accent focus:ring-opacity-50"
+            aria-label="Téléverser votre déclaration d'accident"
           >
             Téléverser maintenant
           </button>
@@ -380,7 +381,8 @@ const HomePage: React.FC = () => {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 right-4 bg-brand-accent hover:bg-opacity-90 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 z-40"
+          className="fixed bottom-24 right-4 bg-brand-accent hover:bg-opacity-90 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 z-40 focus:outline-none focus:ring-4 focus:ring-brand-accent focus:ring-opacity-50"
+          aria-label="Retour en haut de la page"
         >
           <ChevronUp className="w-6 h-6" />
         </button>
