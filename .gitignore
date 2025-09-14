@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Assets de dev copiés automatiquement
+public/test-n8n.html
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
