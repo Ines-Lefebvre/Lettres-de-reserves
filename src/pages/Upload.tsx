@@ -59,9 +59,11 @@ const Upload: React.FC = () => {
         body: formData,
         signal: controller.signal,
         mode: 'cors',
-        credentials: 'omit',
+        credentials: 'omit', // Pas de credentials = plus sécurisé
         headers: {
           'Accept': 'application/json, text/plain, */*',
+          // Pas de Content-Type pour FormData (auto-géré)
+          // Origin header ajouté automatiquement par le navigateur
         },
       });
      
