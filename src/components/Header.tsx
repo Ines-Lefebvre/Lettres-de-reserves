@@ -3,10 +3,6 @@ import { Menu, X } from 'lucide-react';
 
 interface HeaderProps {
   onMenuToggle?: (isOpen: boolean) => void;
-}
-
-interface HeaderProps {
-  onMenuToggle?: (isOpen: boolean) => void;
   hasBackground?: boolean;
 }
 
