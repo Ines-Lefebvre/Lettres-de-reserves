@@ -41,93 +41,85 @@ const Upload: React.FC = () => {
       formData.append('filetype', selectedFile.type);
       formData.append('user_agent', navigator.userAgent);
       
-      console.log('Envoi vers webhook N8N:', {
-        url: webhookUrl,
-        filename: selectedFile.name,
-        filesize: selectedFile.size,
-        filetype: selectedFile.type,
-        formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
-      });
-      
-      console.log('Tentative de connexion au webhook N8N...');
+      console.log('📤 Envoi vers N8N:', selectedFile.name, `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`);
      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
      
       const response = await fetch(webhookUrl, {
         method: 'POST',
         body: formData,
         signal: controller.signal,
         mode: 'cors',
-        credentials: 'omit', // Pas de credentials = plus sécurisé
+        credentials: 'omit',
         headers: {
           'Accept': 'application/json, text/plain, */*',
-          // Pas de Content-Type pour FormData (auto-géré)
-          // Origin header ajouté automatiquement par le navigateur
         },
       });
      
       clearTimeout(timeoutId);
 
-      console.log('Réponse webhook N8N:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: response.url,
-        redirected: response.redirected
-      });
+      console.log(`📥 Réponse N8N: ${response.status} ${response.statusText}`);
 
       if (response.ok) {
-        let responseData;
+        const contentType = response.headers.get('content-type') || '';
+        let responseData = null;
+        
         try {
-          responseData = await response.json();
+          if (contentType.includes('application/json')) {
+            responseData = await response.json();
+            console.log('✅ Données JSON reçues:', responseData);
+          } else {
+            responseData = await response.text();
+            console.log('✅ Réponse texte reçue:', responseData.substring(0, 200) + '...');
+          }
         } catch {
-          const textResponse = await response.text();
-          responseData = textResponse;
-          console.log('Réponse texte brute:', textResponse);
+          console.log('⚠️ Impossible de parser la réponse');
         }
-        console.log('Données de réponse:', responseData);
+        
         setUploadStatus('success');
         setTimeout(() => {
           window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
         }, 2000);
       } else {
-        let errorText = '';
-        let errorDetails = {};
+        const contentType = response.headers.get('content-type') || '';
+        let errorMessage = `Erreur ${response.status}`;
+        
         try {
-          const errorJson = await response.json();
-          errorDetails = errorJson;
-          errorText = errorJson.message || errorJson.error || JSON.stringify(errorJson);
+          if (contentType.includes('application/json')) {
+            const errorJson = await response.json();
+            errorMessage = errorJson.message || errorJson.error || `Erreur ${response.status}`;
+            if (errorJson.error === 'origin_not_allowed') {
+              errorMessage = 'Accès refusé : origine non autorisée';
+            }
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || response.statusText;
+          }
         } catch {
-          const textError = await response.text();
-          errorText = textError || `Erreur HTTP ${response.status}`;
-          console.log('Réponse d\'erreur texte brute:', textError);
+          errorMessage = response.statusText || `Erreur HTTP ${response.status}`;
         }
-        console.error('Erreur webhook N8N complète:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText,
-          errorDetails,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-        throw new Error(`Erreur ${response.status}: ${errorText || response.statusText}`);
+        
+        console.error(`❌ Erreur N8N ${response.status}:`, errorMessage);
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      let errorMsg = 'Erreur inconnue';
+      let userMessage = 'Erreur de connexion au serveur';
      
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          errorMsg = 'Timeout: Le webhook N8N met trop de temps à répondre (>30s)';
+          userMessage = 'Délai d\'attente dépassé (30s). Veuillez réessayer.';
         } else if (error.message === 'Failed to fetch') {
-          errorMsg = 'Impossible de contacter le webhook N8N. Vérifiez votre connexion internet ou contactez le support.';
+          userMessage = 'Impossible de contacter le serveur. Vérifiez votre connexion internet.';
+        } else if (error.message.includes('origine non autorisée')) {
+          userMessage = 'Accès refusé depuis ce domaine. Contactez le support.';
         } else {
-          errorMsg = error.message;
+          userMessage = error.message;
         }
       }
      
-      setErrorMessage(errorMsg);
+      setErrorMessage(userMessage);
       setUploadStatus('error');
     } finally {
       setIsUploading(false);
@@ -236,32 +228,16 @@ const Upload: React.FC = () => {
                     </p>
                   </div>
                   <p className="text-red-700 text-sm mt-2">
-                    {errorMessage || 'Veuillez réessayer ou nous contacter si le problème persiste.'}
+                    {errorMessage}
                   </p>
-                  {errorMessage.includes('500') && (
+                  {(errorMessage.includes('500') || errorMessage.includes('Erreur de connexion')) && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-yellow-800 text-sm font-semibold">💡 Diagnostic d'erreur</p>
+                      <p className="text-yellow-800 text-sm font-semibold">💡 Causes possibles</p>
                       <p className="text-yellow-700 text-xs mt-1">
-                        Causes possibles :
+                        Connexion internet, serveur indisponible, ou fichier trop volumineux.
                       </p>
-                      <ul className="text-yellow-700 text-xs mt-1 ml-4 list-disc">
-                        <li>Problème de connexion internet</li>
-                        <li>Serveur N8N indisponible</li>
-                        <li>Workflow N8N inactif</li>
-                        <li>Problème CORS</li>
-                        <li>Fichier trop volumineux</li>
-                      </ul>
                     </div>
                   )}
-                  <details className="mt-2">
-                    <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
-                    <p className="text-red-600 text-xs mt-1 font-mono">
-                      Webhook: {webhookUrl || 'Non configuré'}
-                    </p>
-                    <p className="text-red-600 text-xs mt-1">
-                      Ouvrez la console (F12) pour voir les logs détaillés
-                    </p>
-                  </details>
                 </div>
               )}
 
