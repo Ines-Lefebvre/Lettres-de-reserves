@@ -149,7 +149,7 @@ curl -X POST \
   -H "Origin: https://landing-page-convers-h8da.bolt.host" \
   -H "Content-Type: application/json" \
   -d '{"test": "data"}' \
-  https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data
+  ${VITE_N8N_WEBHOOK_URL}
 ```
 **Attendu :** 200 OK avec `Access-Control-Allow-Origin: https://landing-page-convers-h8da.bolt.host`
 
@@ -159,7 +159,7 @@ curl -X POST \
   -H "Origin: https://malicious-site.com" \
   -H "Content-Type: application/json" \
   -d '{"test": "data"}' \
-  https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data
+  ${VITE_N8N_WEBHOOK_URL}
 ```
 **Attendu :** 403 Forbidden avec `{"error": "origin_not_allowed"}`
 
@@ -168,7 +168,7 @@ curl -X POST \
 curl -X OPTIONS \
   -H "Origin: https://landing-page-convers-h8da.bolt.host" \
   -H "Access-Control-Request-Method: POST" \
-  https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data
+  ${VITE_N8N_WEBHOOK_URL}
 ```
 **Attendu :** 200 OK avec headers CORS appropriés
 
