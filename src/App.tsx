@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import LazyVideo from './components/LazyVideo';
 import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
+import ValidationPage from './pages/ValidationPage';
 
 const HomePage: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -397,6 +398,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/upload" element={<UploadPage />} />
       <Route path="/response" element={<WebhookResponsePage />} />
+      <Route path="/validation" element={<ValidationPage />} />
     </Routes>
   );
 }

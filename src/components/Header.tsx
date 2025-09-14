@@ -86,11 +86,20 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) 
             <ul className="space-y-4">
               <li>
                 <a 
-                  href="#" 
+                  href="/validation" 
                   className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  À remplir
+                  Validation des données
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="/upload" 
+                  className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Téléverser un document
                 </a>
               </li>
               <li>
@@ -99,16 +108,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) 
                   className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  À remplir
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="#" 
-                  className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  À remplir
+                  Contact
                 </a>
               </li>
             </ul>
