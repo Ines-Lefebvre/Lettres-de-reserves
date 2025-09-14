@@ -9,6 +9,8 @@ const Upload: React.FC = () => {
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = React.useState<string>('');
 
+  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -20,9 +22,15 @@ const Upload: React.FC = () => {
   const handleSubmit = async () => {
     if (!selectedFile) return;
 
+    if (!webhookUrl) {
+      setErrorMessage('Configuration manquante : URL du webhook N8N non définie');
+      setUploadStatus('error');
+      return;
+    }
+
     setIsUploading(true);
     setUploadStatus('idle');
-   setErrorMessage('');
+    setErrorMessage('');
 
     try {
       const formData = new FormData();
@@ -33,34 +41,33 @@ const Upload: React.FC = () => {
       formData.append('filetype', selectedFile.type);
       formData.append('user_agent', navigator.userAgent);
       
-      console.log('Envoi vers webhook:', {
-       url: 'https://n8n.srv833062.hstgr.cloud/webhook/test-simple',
+      console.log('Envoi vers webhook N8N:', {
+        url: webhookUrl,
         filename: selectedFile.name,
         filesize: selectedFile.size,
         filetype: selectedFile.type,
         formDataEntries: Array.from(formData.entries()).map(([key, value]) => [key, typeof value === 'string' ? value : `File(${value.name})`])
       });
       
-     console.log('Tentative de connexion au webhook...');
+      console.log('Tentative de connexion au webhook N8N...');
      
-     const controller = new AbortController();
-     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
      
-     const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data', {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         body: formData,
-       signal: controller.signal,
+        signal: controller.signal,
         mode: 'cors',
         credentials: 'omit',
         headers: {
           'Accept': 'application/json, text/plain, */*',
         },
-        // Pas de Content-Type header - laissons le navigateur le définir automatiquement pour FormData
       });
      
-     clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-      console.log('Réponse webhook:', {
+      console.log('Réponse webhook N8N:', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
@@ -80,7 +87,6 @@ const Upload: React.FC = () => {
         }
         console.log('Données de réponse:', responseData);
         setUploadStatus('success');
-        // Rediriger vers la page de réponse après succès
         setTimeout(() => {
           window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
         }, 2000);
@@ -96,7 +102,7 @@ const Upload: React.FC = () => {
           errorText = textError || `Erreur HTTP ${response.status}`;
           console.log('Réponse d\'erreur texte brute:', textError);
         }
-        console.error('Erreur webhook complète:', {
+        console.error('Erreur webhook N8N complète:', {
           status: response.status,
           statusText: response.statusText,
           errorText,
@@ -107,17 +113,17 @@ const Upload: React.FC = () => {
       }
     } catch (error) {
       console.error('Erreur:', error);
-     let errorMsg = 'Erreur inconnue';
+      let errorMsg = 'Erreur inconnue';
      
-     if (error instanceof Error) {
-       if (error.name === 'AbortError') {
-         errorMsg = 'Timeout: Le serveur met trop de temps à répondre (>30s)';
-       } else if (error.message === 'Failed to fetch') {
-         errorMsg = 'Impossible de contacter le serveur. Vérifiez votre connexion internet ou contactez le support.';
-       } else {
-         errorMsg = error.message;
-       }
-     }
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMsg = 'Timeout: Le webhook N8N met trop de temps à répondre (>30s)';
+        } else if (error.message === 'Failed to fetch') {
+          errorMsg = 'Impossible de contacter le webhook N8N. Vérifiez votre connexion internet ou contactez le support.';
+        } else {
+          errorMsg = error.message;
+        }
+      }
      
       setErrorMessage(errorMsg);
       setUploadStatus('error');
@@ -126,40 +132,6 @@ const Upload: React.FC = () => {
     }
   };
 
-  // Fonction de test du webhook
-  const testWebhook = async () => {
-    try {
-      console.log('Test du webhook sans fichier...');
-      const testData = new FormData();
-      testData.append('test', 'true');
-      testData.append('timestamp', new Date().toISOString());
-      
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data', {
-        method: 'POST',
-        body: testData,
-        mode: 'cors',
-        credentials: 'omit',
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-        },
-      });
-      
-      console.log('Test webhook - Réponse:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      });
-      
-      const responseText = await response.text();
-      console.log('Test webhook - Contenu:', responseText);
-      
-      alert(`Test webhook: ${response.status} - ${response.ok ? 'Succès' : 'Erreur'}`);
-    } catch (error) {
-      console.error('Erreur test webhook:', error);
-      alert(`Erreur test: ${error.message}`);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-brand-white">
@@ -266,23 +238,23 @@ const Upload: React.FC = () => {
                   </p>
                   {errorMessage.includes('500') && (
                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                     <p className="text-yellow-800 text-sm font-semibold">💡 Diagnostic d'erreur</p>
+                      <p className="text-yellow-800 text-sm font-semibold">💡 Diagnostic d'erreur</p>
                       <p className="text-yellow-700 text-xs mt-1">
-                       Causes possibles :
+                        Causes possibles :
                       </p>
                       <ul className="text-yellow-700 text-xs mt-1 ml-4 list-disc">
-                       <li>Problème de connexion internet</li>
-                       <li>Serveur N8N indisponible</li>
-                       <li>Workflow N8N inactif</li>
-                       <li>Problème CORS</li>
-                       <li>Fichier trop volumineux</li>
+                        <li>Problème de connexion internet</li>
+                        <li>Serveur N8N indisponible</li>
+                        <li>Workflow N8N inactif</li>
+                        <li>Problème CORS</li>
+                        <li>Fichier trop volumineux</li>
                       </ul>
                     </div>
                   )}
                   <details className="mt-2">
                     <summary className="text-red-600 text-xs cursor-pointer">Détails techniques</summary>
                     <p className="text-red-600 text-xs mt-1 font-mono">
-                     Webhook: https://n8n.srv833062.hstgr.cloud/webhook-test/mistral-ocr-data
+                      Webhook: {webhookUrl || 'Non configuré'}
                     </p>
                     <p className="text-red-600 text-xs mt-1">
                       Ouvrez la console (F12) pour voir les logs détaillés
@@ -298,10 +270,10 @@ const Upload: React.FC = () => {
                   <div>
                     <p className="font-semibold mb-1">En cas de problème :</p>
                     <ul className="space-y-1 text-gray-700">
-                     <li>• Vérifiez votre connexion internet</li>
-                     <li>• Assurez-vous que le fichier est au format PDF</li>
-                     <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
-                     <li>• Contactez le support si le problème persiste</li>
+                      <li>• Vérifiez votre connexion internet</li>
+                      <li>• Assurez-vous que le fichier est au format PDF</li>
+                      <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
+                      <li>• Contactez le support si le problème persiste</li>
                     </ul>
                   </div>
                 </div>
