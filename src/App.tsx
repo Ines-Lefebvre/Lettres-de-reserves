@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { ChevronUp, Upload, Menu, X } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import LazyVideo from './components/LazyVideo';
 import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 
@@ -61,17 +62,13 @@ const HomePage: React.FC = () => {
 
       {/* Header Section */}
       <section className="bg-brand-dark text-brand-white pt-32 pb-24 md:pt-40 md:pb-32 px-4 relative overflow-hidden min-h-screen">
-        {/* Background Video */}
-        <video 
-          autoPlay 
-          muted 
-          loop 
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-30"
-        >
-          <source src="/lawyer-video.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+        {/* Background Video - Lazy Loaded */}
+        <div className="absolute inset-0 w-full h-full opacity-30">
+          <LazyVideo 
+            className="w-full h-full object-cover"
+            ariaLabel="Vidéo de présentation du cabinet d'avocats"
+          />
+        </div>
         
         {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark opacity-50"></div>
