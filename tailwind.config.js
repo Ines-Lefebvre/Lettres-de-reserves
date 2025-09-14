@@ -4,6 +4,44 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Couleurs de marque (corrigées)
+        brand: {
+          dark: '#3c3533',
+          light: '#d2c8c3',
+          neutral: '#e8d8c9',
+          green: '#2e7d6f',
+          white: '#ffffff',
+          accent: '#c19a5f',
+          text: {
+            dark: '#000000',
+            light: '#e0e0e0',
+          },
+        },
+        // Tokens sémantiques
+        surface: {
+          DEFAULT: '#ffffff',
+          muted: '#f9f7f5',
+          neutral: '#e8d8c9',
+          dark: '#3c3533',
+        },
+        primary: {
+          DEFAULT: '#3c3533',
+          foreground: '#ffffff',
+          muted: '#6b7280',
+        },
+        secondary: {
+          DEFAULT: '#c19a5f',
+          foreground: '#ffffff',
+          muted: '#d2c8c3',
+        },
+        text: {
+          primary: '#000000',
+          secondary: '#3c3533',
+          muted: '#6b7280',
+          inverse: '#ffffff',
+          accent: '#c19a5f',
+        },
+        // Couleurs legacy (pour compatibilité)
         'brand-dark': '#3c3533',
         'brand-light': '#d2c8c3',
         'brand-neutral': '#e8d8c9',

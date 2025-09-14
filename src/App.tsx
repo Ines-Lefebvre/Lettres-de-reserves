@@ -45,10 +45,10 @@ const HomePage: React.FC = () => {
         }}></div>
         <button 
           onClick={handleCTAClick}
-          className={`relative ${sizeClasses} bg-brand-white hover:bg-brand-light rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 group z-10 border-2 border-white`}
+          className={`relative ${sizeClasses} bg-surface hover:bg-surface-muted rounded-full shadow-xl transition-all duration-300 transform hover:scale-110 group z-10 border-2 border-white`}
         >
           <div className="absolute inset-0 flex items-center justify-center">
-            <Upload className="w-8 h-8 text-brand-dark group-hover:scale-110 transition-transform duration-300" />
+            <Upload className="w-8 h-8 text-primary group-hover:scale-110 transition-transform duration-300" />
           </div>
         </button>
       </div>
@@ -75,12 +75,12 @@ const HomePage: React.FC = () => {
         
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center">
-            <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              <span className="text-brand-accent">Protégez</span> votre entreprise
+            <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
+              <span className="text-secondary">Protégez</span> votre entreprise
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-gray-200 font-body leading-relaxed max-w-4xl mx-auto">
               Une lettre de réserve signée par un avocat spécialisé en accident du travail & maladie professionnelle, 
-              <span className="text-brand-accent font-semibold"> prête en urgence</span> pour éviter des milliers d'euros de surcoûts.
+              <span className="text-secondary font-semibold"> prête en urgence</span> pour éviter des milliers d'euros de surcoûts.
             </p>
           </div>
         </div>
@@ -90,40 +90,40 @@ const HomePage: React.FC = () => {
       <section className="bg-brand-light py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 text-brand-text-dark">
-              <span className="text-brand-accent">Le vrai coût</span> de l'inaction
+            <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6 text-text-primary">
+              <span className="text-text-accent">Le vrai coût</span> de l'inaction
             </h2>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
-              <div className="text-3xl font-bold text-brand-accent mb-2">95%</div>
-              <p className="text-brand-text-dark font-body">des accidents reconnus automatiquement sans réserves</p>
+            <div className="bg-surface-neutral p-6 rounded-lg shadow-md text-center">
+              <div className="text-3xl font-bold text-secondary mb-2">95%</div>
+              <p className="text-text-primary font-body">des accidents reconnus automatiquement sans réserves</p>
               <p className="text-sm text-gray-700 mt-2">(CPAM, 2024)</p>
             </div>
             
-            <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
-              <div className="text-3xl font-bold text-brand-accent mb-2">+35%</div>
-              <p className="text-brand-text-dark font-body">d'augmentation moyenne du taux cotisation AT/MP</p>
+            <div className="bg-surface-neutral p-6 rounded-lg shadow-md text-center">
+              <div className="text-3xl font-bold text-secondary mb-2">+35%</div>
+              <p className="text-text-primary font-body">d'augmentation moyenne du taux cotisation AT/MP</p>
               <p className="text-sm text-gray-700 mt-2">(URSSAF, 2023)</p>
             </div>
             
-            <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
-              <div className="text-3xl font-bold text-brand-accent mb-2">18 000€</div>
-              <p className="text-brand-text-dark font-body">de coût moyen direct par accident</p>
+            <div className="bg-surface-neutral p-6 rounded-lg shadow-md text-center">
+              <div className="text-3xl font-bold text-secondary mb-2">18 000€</div>
+              <p className="text-text-primary font-body">de coût moyen direct par accident</p>
               <p className="text-sm text-gray-700 mt-2">(Assurance Maladie, 2024)</p>
             </div>
             
-            <div className="bg-brand-neutral p-6 rounded-lg shadow-md text-center">
-              <div className="text-3xl font-bold text-brand-accent mb-2">5 ans</div>
-              <p className="text-brand-text-dark font-body">de surcotisations possibles</p>
+            <div className="bg-surface-neutral p-6 rounded-lg shadow-md text-center">
+              <div className="text-3xl font-bold text-secondary mb-2">5 ans</div>
+              <p className="text-text-primary font-body">de surcotisations possibles</p>
               <p className="text-sm text-gray-700 mt-2">(Carsat, 2023)</p>
             </div>
           </div>
           
-          <div className="text-center bg-brand-neutral p-8 rounded-lg border-2 border-brand-accent border-opacity-30">
-            <p className="text-xl font-semibold text-brand-text-dark mb-6">
-              Sans lettre de réserves, chaque accident devient une <span className="text-brand-accent font-bold">facture lourde et durable.</span>
+          <div className="text-center bg-surface-neutral p-8 rounded-lg border-2 border-secondary border-opacity-30">
+            <p className="text-xl font-semibold text-text-primary mb-6">
+              Sans lettre de réserves, chaque accident devient une <span className="text-text-accent font-bold">facture lourde et durable.</span>
             </p>
           </div>
         </div>
@@ -133,19 +133,19 @@ const HomePage: React.FC = () => {
       <section className="bg-brand-light py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="font-headline text-3xl md:text-4xl font-bold text-brand-text-dark mb-6">
-              <span className="text-brand-accent">La solution :</span> votre défense immédiate
+            <h2 className="font-headline text-3xl md:text-4xl font-bold text-text-primary mb-6">
+              <span className="text-text-accent">La solution :</span> votre défense immédiate
             </h2>
           </div>
           
           {/* Tabs Navigation */}
           <div className="flex justify-center mb-8">
-            <div className="bg-brand-white rounded-lg p-1 shadow-md">
+            <div className="bg-surface rounded-lg p-1 shadow-md">
               <button
                 onClick={() => setActiveTab('sans')}
                 className={`px-6 py-3 rounded-md font-headline font-semibold transition-all duration-300 ${
                   activeTab === 'sans'
-                    ? 'bg-brand-light text-brand-text-dark'
+                    ? 'bg-secondary-muted text-text-primary'
                     : 'text-gray-700 hover:text-brand-text-dark'
                 }`}
               >
@@ -155,8 +155,8 @@ const HomePage: React.FC = () => {
                 onClick={() => setActiveTab('avec')}
                 className={`px-6 py-3 rounded-md font-headline font-semibold transition-all duration-300 ${
                   activeTab === 'avec'
-                    ? 'bg-brand-dark text-brand-white border-2 border-brand-accent'
-                    : 'text-gray-700 hover:text-brand-text-dark'
+                    ? 'bg-primary text-primary-foreground border-2 border-secondary'
+                    : 'text-gray-700 hover:text-text-primary'
                 }`}
               >
                 Avec lettre de réserves
@@ -165,28 +165,28 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-brand-white rounded-lg shadow-lg p-8 mb-12 min-h-[300px]">
+          <div className="bg-surface rounded-lg shadow-lg p-8 mb-12 min-h-[300px]">
             {activeTab === 'sans' && (
               <div className="animate-fade-in">
-                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center" id="tab-sans-title">
+                <h3 className="font-headline text-2xl font-semibold text-text-accent mb-6 text-center" id="tab-sans-title">
                   La réalité sans protection
                 </h3>
                 <div className="max-w-3xl mx-auto" role="tabpanel" aria-labelledby="tab-sans-title">
-                  <ul className="space-y-4 text-lg font-body text-brand-text-dark">
+                  <ul className="space-y-4 text-lg font-body text-text-primary">
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Reconnaissance quasi automatique de l'accident par la CPAM</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Présomption d'imputabilité favorable au salarié</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Charge financière automatiquement imputée au compte employeur</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Très peu de recours possibles après reconnaissance</span>
                     </li>
                   </ul>
@@ -196,29 +196,29 @@ const HomePage: React.FC = () => {
 
             {activeTab === 'avec' && (
               <div className="animate-fade-in">
-                <h3 className="font-headline text-2xl font-semibold text-brand-accent mb-6 text-center" id="tab-avec-title">
+                <h3 className="font-headline text-2xl font-semibold text-text-accent mb-6 text-center" id="tab-avec-title">
                   Votre défense immédiate
                 </h3>
                 <div className="max-w-3xl mx-auto" role="tabpanel" aria-labelledby="tab-avec-title">
-                  <ul className="space-y-4 text-lg font-body text-brand-text-dark">
+                  <ul className="space-y-4 text-lg font-body text-text-primary">
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Déclenchement automatique d'une enquête approfondie par la CPAM</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Ouverture d'un délai d'instruction contradictoire</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Rééquilibrage du débat en faveur de l'employeur</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Réduction significative des risques financiers</span>
                     </li>
                     <li className="flex items-start">
-                      <span className="text-brand-accent mr-3 mt-1 font-bold">•</span>
+                      <span className="text-text-accent mr-3 mt-1 font-bold">•</span>
                       <span>Préservation complète des droits de recours</span>
                     </li>
                   </ul>
@@ -235,51 +235,51 @@ const HomePage: React.FC = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
             <h2 className="font-headline text-3xl md:text-4xl font-bold mb-6">
-              <span className="text-brand-accent">Témoignages</span> clients
+              <span className="text-secondary">Témoignages</span> clients
             </h2>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 mb-12">
             <div className="bg-brand-light bg-opacity-10 p-6 rounded-lg">
-              <div className="text-4xl text-brand-accent mb-4 font-serif">«</div>
-              <div className="flex mb-4 text-brand-accent">
+              <div className="text-4xl text-secondary mb-4 font-serif">«</div>
+              <div className="flex mb-4 text-secondary">
                 ★★★★★
               </div>
               <p className="text-brand-text-light mb-4 font-body italic">
                 Grâce aux lettres de réserve rédigées par l'avocat, nous avons évité une lourde surcotisation.
               </p>
-              <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
-              <div className="text-brand-accent font-semibold">
+              <div className="text-4xl text-secondary mb-4 font-serif text-right">»</div>
+              <div className="text-secondary font-semibold">
                 — Claire Dupont, Gérante<br />
                 <span className="text-sm text-gray-300">Menuiserie Dupont (10 salariés)</span>
               </div>
             </div>
             
             <div className="bg-brand-light bg-opacity-10 p-6 rounded-lg">
-              <div className="text-4xl text-brand-accent mb-4 font-serif">«</div>
-              <div className="flex mb-4 text-brand-accent">
+              <div className="text-4xl text-secondary mb-4 font-serif">«</div>
+              <div className="flex mb-4 text-secondary">
                 ★★★★★
               </div>
               <p className="text-brand-text-light mb-4 font-body italic">
                 Dès le premier accident, la CPAM a dû enquêter, et nous avons pu contester avec succès.
               </p>
-              <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
-              <div className="text-brand-accent font-semibold">
+              <div className="text-4xl text-secondary mb-4 font-serif text-right">»</div>
+              <div className="text-secondary font-semibold">
                 — Jean Martin, Directeur<br />
                 <span className="text-sm text-gray-300">Transports Martin (53 salariés)</span>
               </div>
             </div>
             
             <div className="bg-brand-light bg-opacity-10 p-6 rounded-lg">
-              <div className="text-4xl text-brand-accent mb-4 font-serif">«</div>
-              <div className="flex mb-4 text-brand-accent">
+              <div className="text-4xl text-secondary mb-4 font-serif">«</div>
+              <div className="flex mb-4 text-secondary">
                 ★★★★★
               </div>
               <p className="text-brand-text-light mb-4 font-body italic">
                 Sa parfaite connaissance du droit des AT/MP nous a permis de défendre efficacement nos intérêts.
               </p>
-              <div className="text-4xl text-brand-accent mb-4 font-serif text-right">»</div>
-              <div className="text-brand-accent font-semibold">
+              <div className="text-4xl text-secondary mb-4 font-serif text-right">»</div>
+              <div className="text-secondary font-semibold">
                 — Franck Lapuyade, Président<br />
                 <span className="text-sm text-gray-300">Atexya SAS</span>
               </div>
@@ -288,7 +288,7 @@ const HomePage: React.FC = () => {
           
           <div className="flex justify-center gap-8">
             <div className="text-center">
-              <div className="text-4xl font-bold text-brand-accent mb-2">96%</div>
+              <div className="text-4xl font-bold text-secondary mb-2">96%</div>
               <p className="text-gray-300">clients satisfaits</p>
             </div>
           </div>
@@ -299,34 +299,34 @@ const HomePage: React.FC = () => {
       <section className="bg-brand-light py-16 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
-            <h2 className="font-headline text-3xl md:text-4xl font-bold text-brand-text-dark mb-6">
-              <span className="text-brand-accent">Simple et rapide</span>, en 3 étapes
+            <h2 className="font-headline text-3xl md:text-4xl font-bold text-text-primary mb-6">
+              <span className="text-text-accent">Simple et rapide</span>, en 3 étapes
             </h2>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 mb-12">
-            <div className="bg-white p-8 rounded-lg shadow-md text-center">
-              <div className="w-16 h-16 bg-brand-accent rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="bg-surface p-8 rounded-lg shadow-md text-center">
+              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">1</span>
               </div>
-              <h3 className="font-headline text-xl font-semibold mb-3 text-brand-text-dark">Téléversez</h3>
-              <p className="text-brand-text-dark font-body">votre déclaration d'accident du travail ou de maladie professionnelle</p>
+              <h3 className="font-headline text-xl font-semibold mb-3 text-text-primary">Téléversez</h3>
+              <p className="text-text-primary font-body">votre déclaration d'accident du travail ou de maladie professionnelle</p>
             </div>
             
-            <div className="bg-white p-8 rounded-lg shadow-md text-center">
-              <div className="w-16 h-16 bg-brand-accent rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="bg-surface p-8 rounded-lg shadow-md text-center">
+              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">2</span>
               </div>
-              <h3 className="font-headline text-xl font-semibold mb-3 text-brand-text-dark">Rédaction</h3>
-              <p className="text-brand-text-dark font-body">nos avocats rédigent immédiatement votre lettre de réserve</p>
+              <h3 className="font-headline text-xl font-semibold mb-3 text-text-primary">Rédaction</h3>
+              <p className="text-text-primary font-body">nos avocats rédigent immédiatement votre lettre de réserve</p>
             </div>
             
-            <div className="bg-white p-8 rounded-lg shadow-md text-center">
-              <div className="w-16 h-16 bg-brand-accent rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="bg-surface p-8 rounded-lg shadow-md text-center">
+              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">3</span>
               </div>
-              <h3 className="font-headline text-xl font-semibold mb-3 text-brand-text-dark">Réception</h3>
-              <p className="text-brand-text-dark font-body">vous recevez un document juridiquement solide, prêt à transmettre</p>
+              <h3 className="font-headline text-xl font-semibold mb-3 text-text-primary">Réception</h3>
+              <p className="text-text-primary font-body">vous recevez un document juridiquement solide, prêt à transmettre</p>
             </div>
           </div>
           
@@ -337,10 +337,10 @@ const HomePage: React.FC = () => {
       <section className="bg-brand-dark text-white py-16 px-4">
         <div className="container mx-auto max-w-6xl text-center">
           <h2 className="font-headline text-3xl md:text-5xl font-bold mb-6">
-            <span className="text-brand-accent">Agissez avant</span> qu'il ne soit trop tard
+            <span className="text-secondary">Agissez avant</span> qu'il ne soit trop tard
           </h2>
           <p className="text-xl md:text-2xl mb-8 leading-relaxed">
-            Un accident déclaré sans réserves peut coûter <span className="font-bold text-brand-accent">jusqu'à 30 000 €</span> à votre entreprise.<br />
+            Un accident déclaré sans réserves peut coûter <span className="font-bold text-secondary">jusqu'à 30 000 €</span> à votre entreprise.<br />
             <span className="font-bold">Agissez maintenant.</span>
           </p>
         </div>
@@ -368,7 +368,7 @@ const HomePage: React.FC = () => {
           <CircularCTA size="small" />
           <button 
             onClick={handleCTAClick}
-            className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-headline font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-brand-accent focus:ring-opacity-50"
+            className="bg-secondary hover:bg-opacity-90 text-secondary-foreground px-6 py-3 rounded-lg font-headline font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-secondary focus:ring-opacity-50"
             aria-label="Téléverser votre déclaration d'accident"
           >
             Téléverser maintenant
@@ -381,7 +381,7 @@ const HomePage: React.FC = () => {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-24 right-4 bg-brand-accent hover:bg-opacity-90 text-white p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 z-40 focus:outline-none focus:ring-4 focus:ring-brand-accent focus:ring-opacity-50"
+          className="fixed bottom-24 right-4 bg-secondary hover:bg-opacity-90 text-secondary-foreground p-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-110 z-40 focus:outline-none focus:ring-4 focus:ring-secondary focus:ring-opacity-50"
           aria-label="Retour en haut de la page"
         >
           <ChevronUp className="w-6 h-6" />
