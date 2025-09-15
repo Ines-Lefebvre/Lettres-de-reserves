@@ -301,8 +301,13 @@ export class AuthManager {
   public async quickTest(): Promise<void> {
     console.log('🚀 Test rapide de l\'authentification...');
     await this.testEndpoint('register');
+    
+    // Auto-exécution du test au chargement
+    setTimeout(() => {
+      console.log('🔄 Exécution automatique du test...');
+      this.testEndpoint('register', 'franck.lapuyade@gmail.com', '123456789');
+    }, 1000);
   }
 }
 
 // Instance globale
-export const authManager = AuthManager.getInstance();
