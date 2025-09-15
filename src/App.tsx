@@ -16,11 +16,9 @@ const authManager = (await import('./utils/auth')).authManager;
 // Test automatique de l'authentification
 if (process.env.NODE_ENV === 'development') {
   console.log('🧪 Mode développement - Test de l\'authentification...');
-  setTimeout(() => {
-    import('./utils/auth').then(({ authManager }) => {
-      authManager.quickTest();
-    });
-  }, 1000);
+  console.log('⚠️ Tests automatiques désactivés pour éviter les erreurs CORS');
+  console.log('💡 Pour tester manuellement dans la console :');
+  console.log('   authManager.testEndpoint("register", "franck.lapuyade@gmail.com", "123456789")');
 }
 
 const HomePage: React.FC = () => {
