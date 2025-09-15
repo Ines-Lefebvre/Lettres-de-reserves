@@ -63,8 +63,8 @@ const HomePage: React.FC = () => {
 
       {/* Header Section */}
       <section className="relative overflow-hidden min-h-screen">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark via-brand-dark to-brand-accent"></div>
+        {/* Background */}
+        <div className="absolute inset-0 bg-brand-dark"></div>
         
         {/* Contenu texte centré */}
         <div className="relative z-10 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 min-h-screen flex items-center">
