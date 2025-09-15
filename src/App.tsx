@@ -63,22 +63,11 @@ const HomePage: React.FC = () => {
 
       {/* Header Section */}
       <section className="relative overflow-hidden min-h-screen">
-        {/* Background Video avec LazyVideo */}
-        <div className="absolute inset-0">
-          <LazyVideo 
-            className="w-full h-full"
-            posterUrl="/posters/lawyer-video-poster.jpg"
-            mobileVideoUrl="/lawyer-video-720.mp4"
-            desktopVideoUrl="/lawyer-video-1080.mp4"
-            ariaLabel="Vidéo de présentation du cabinet d'avocats"
-          />
-        </div>
-        
-        {/* Overlay pour la lisibilité du texte */}
-        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark via-brand-dark to-brand-accent"></div>
         
         {/* Contenu texte centré */}
-        <div className="relative z-20 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 min-h-screen flex items-center">
+        <div className="relative z-10 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 min-h-screen flex items-center">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center">
               <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
