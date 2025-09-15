@@ -104,12 +104,14 @@ export class AuthManager {
   // Connexion
   public async login(email: string, password: string): Promise<AuthResponse> {
     try {
+      console.log('🔐 Tentative de connexion pour:', email);
+      
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': 'https://landing-page-convers-h8da.bolt.host'
+          'Origin': window.location.origin
         },
         body: JSON.stringify({
           action: 'login',
@@ -118,23 +120,42 @@ export class AuthManager {
         })
       });
 
-      const data = await response.json();
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', [...response.headers.entries()]);
 
-      if (response.ok && data.success && data.token) {
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('📦 Full response:', result);
+
+      // Le workflow N8N retourne { response: { ok: true, token: "...", user: {...} } }
+      let data;
+      if (result.response && result.response.ok) {
+        data = result.response;
+      } else if (result.ok) {
+        data = result;
+      } else {
+        throw new Error(result.error || result.response?.error || 'Authentication failed');
+      }
+
+      if (data.ok && data.token) {
         this.setToken(data.token);
         const user = this.decodeJWT(data.token);
         if (user) {
           localStorage.setItem(this.USER_KEY, JSON.stringify(user));
         }
+        console.log('✅ Connexion réussie pour:', email);
         return { success: true, token: data.token, user };
       } else {
         return { 
           success: false, 
-          error: data.message || data.error || 'Erreur de connexion' 
+          error: data.error || data.message || 'Erreur de connexion' 
         };
       }
     } catch (error) {
-      console.error('Erreur login:', error);
+      console.error('❌ Erreur login:', error);
       return { 
         success: false, 
         error: 'Erreur de connexion au serveur' 
@@ -145,12 +166,14 @@ export class AuthManager {
   // Inscription
   public async register(email: string, password: string): Promise<AuthResponse> {
     try {
+      console.log('📝 Tentative d\'inscription pour:', email);
+      
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': 'https://landing-page-convers-h8da.bolt.host'
+          'Origin': window.location.origin
         },
         body: JSON.stringify({
           action: 'register',
@@ -159,23 +182,42 @@ export class AuthManager {
         })
       });
 
-      const data = await response.json();
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', [...response.headers.entries()]);
 
-      if (response.ok && data.success && data.token) {
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('📦 Full response:', result);
+
+      // Le workflow N8N retourne { response: { ok: true, token: "...", user: {...} } }
+      let data;
+      if (result.response && result.response.ok) {
+        data = result.response;
+      } else if (result.ok) {
+        data = result;
+      } else {
+        throw new Error(result.error || result.response?.error || 'Registration failed');
+      }
+
+      if (data.ok && data.token) {
         this.setToken(data.token);
         const user = this.decodeJWT(data.token);
         if (user) {
           localStorage.setItem(this.USER_KEY, JSON.stringify(user));
         }
+        console.log('✅ Inscription réussie pour:', email);
         return { success: true, token: data.token, user };
       } else {
         return { 
           success: false, 
-          error: data.message || data.error || 'Erreur lors de l\'inscription' 
+          error: data.error || data.message || 'Erreur lors de l\'inscription' 
         };
       }
     } catch (error) {
-      console.error('Erreur register:', error);
+      console.error('❌ Erreur register:', error);
       return { 
         success: false, 
         error: 'Erreur de connexion au serveur' 
