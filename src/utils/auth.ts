@@ -257,19 +257,26 @@ export class AuthManager {
   }
 
   // Fonction de test pour valider l'endpoint
-  public async testEndpoint(action: 'login' | 'register' = 'register'): Promise<void> {
+  public async testEndpoint(action: 'login' | 'register' = 'register', email: string = 'franck.lapuyade@gmail.com', password: string = '123456789'): Promise<void> {
     try {
       console.log('🧪 Test de l\'endpoint:', this.AUTH_ENDPOINT);
+      console.log('📧 Email:', email);
+      console.log('🔑 Action:', action);
       
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
+        mode: 'cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: action,
-          email: 'franck.lapuyade@gmail.com',
-          password: '123456789'
+          action,
+          email,
+          password
         })
       });
+      
+      console.log('📡 Status:', response.status);
+      console.log('📡 Status Text:', response.statusText);
+      console.log('📡 Headers:', [...response.headers.entries()]);
       
       const data = await response.text();
       console.log('✅ SUCCESS:', data);
@@ -284,7 +291,16 @@ export class AuthManager {
       
     } catch (error) {
       console.error('❌ ERROR:', error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('🌐 Problème de réseau ou CORS');
+      }
     }
+  }
+
+  // Test rapide depuis la console
+  public async quickTest(): Promise<void> {
+    console.log('🚀 Test rapide de l\'authentification...');
+    await this.testEndpoint('register');
   }
 }
 
