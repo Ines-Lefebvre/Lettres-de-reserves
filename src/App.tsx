@@ -62,17 +62,32 @@ const HomePage: React.FC = () => {
       <Header onMenuToggle={setIsMenuOpen} />
 
       {/* Header Section */}
-      <section className="bg-brand-dark text-brand-white pt-32 pb-24 md:pt-40 md:pb-32 px-4 relative overflow-hidden min-h-screen">
+      <section className="bg-brand-dark text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 relative overflow-hidden" style={{ minHeight: '85vh' }}>
         {/* Background Video - Lazy Loaded */}
-        <div className="absolute inset-0 w-full h-full opacity-30">
-          <LazyVideo 
+        <div className="absolute inset-0 w-full h-full opacity-40">
+          <video
             className="w-full h-full object-cover"
-            ariaLabel="Vidéo de présentation du cabinet d'avocats"
-          />
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/posters/lawyer-video-poster.jpg"
+          >
+            <source src="/lawyer-video-720.mp4" type="video/mp4" media="(max-width: 768px)" />
+            <source src="/lawyer-video-1080.mp4" type="video/mp4" media="(min-width: 769px)" />
+            <source src="/lawyer-video-720.mp4" type="video/mp4" />
+            <p className="text-center text-gray-600 p-4">
+              Votre navigateur ne supporte pas la vidéo HTML5.
+              <a href="/lawyer-video-720.mp4" className="text-brand-accent hover:underline ml-2">
+                Télécharger la vidéo
+              </a>
+            </p>
+          </video>
         </div>
         
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark opacity-40"></div>
         
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center">
