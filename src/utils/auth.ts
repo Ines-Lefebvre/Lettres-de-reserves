@@ -90,8 +90,7 @@ export class AuthManager {
   // Headers pour les requêtes authentifiées
   public getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Origin': 'https://landing-page-convers-h8da.bolt.host'
+      'Content-Type': 'application/json'
     };
 
     const token = this.getToken();
@@ -109,7 +108,8 @@ export class AuthManager {
         method: 'POST',
         mode: 'cors',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Origin': 'https://landing-page-convers-h8da.bolt.host'
         },
         body: JSON.stringify({
           action: 'login',
@@ -149,7 +149,8 @@ export class AuthManager {
         method: 'POST',
         mode: 'cors',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Origin': 'https://landing-page-convers-h8da.bolt.host'
         },
         body: JSON.stringify({
           action: 'register',
