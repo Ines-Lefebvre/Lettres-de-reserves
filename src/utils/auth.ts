@@ -18,6 +18,7 @@ export class AuthManager {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
   private readonly API_BASE_URL = 'https://n8n.srv833062.hstgr.cloud';
+  private readonly AUTH_ENDPOINT = `${this.API_BASE_URL}/webhook/auth`;
 
   private constructor() {}
 
@@ -89,8 +90,8 @@ export class AuthManager {
   // Headers pour les requêtes authentifiées
   public getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Origin': 'https://landing-page-convers-h8da.bolt.host',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Origin': 'https://landing-page-convers-h8da.bolt.host'
     };
 
     const token = this.getToken();
@@ -104,11 +105,12 @@ export class AuthManager {
   // Connexion
   public async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/webhook/webhook/auth`, {
+      const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
+        mode: 'cors',
         headers: {
-          'Origin': 'https://landing-page-convers-h8da.bolt.host',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Origin': 'https://landing-page-convers-h8da.bolt.host'
         },
         body: JSON.stringify({
           action: 'login',
@@ -144,11 +146,12 @@ export class AuthManager {
   // Inscription
   public async register(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/webhook/webhook/auth`, {
+      const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
+        mode: 'cors',
         headers: {
-          'Origin': 'https://landing-page-convers-h8da.bolt.host',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Origin': 'https://landing-page-convers-h8da.bolt.host'
         },
         body: JSON.stringify({
           action: 'register',
