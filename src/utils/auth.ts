@@ -311,14 +311,10 @@ export class AuthManager {
   // Test rapide depuis la console
   public async quickTest(): Promise<void> {
     console.log('🚀 Test rapide de l\'authentification...');
-    console.log('🔄 Test avec les nouvelles modifications N8N...');
-    await this.testEndpoint('register', 'franck.lapuyade@gmail.com', '123456789');
-    
-    // Test supplémentaire après 2 secondes
-    setTimeout(() => {
-      console.log('🔄 Test de connexion...');
-      this.testEndpoint('login', 'franck.lapuyade@gmail.com', '123456789');
-    }, 2000);
+    console.log('🔄 Tests désactivés en développement local');
+    console.log('💡 Pour tester manuellement, utilisez :');
+    console.log('   authManager.testEndpoint("register", "email@test.com", "password")');
+    console.log('   authManager.testEndpoint("login", "email@test.com", "password")');
   }
 }
 
