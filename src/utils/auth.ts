@@ -17,7 +17,7 @@ export class AuthManager {
   private static instance: AuthManager;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
-  private readonly API_BASE_URL = import.meta.env.VITE_N8N_WEBHOOK_URL?.replace('/webhook', '') || 'https://votre-instance-n8n.com';
+  private readonly API_BASE_URL = 'https://n8n.srv833062.hstgr.cloud';
 
   private constructor() {}
 
@@ -104,7 +104,7 @@ export class AuthManager {
   // Connexion
   public async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/webhook/auth`, {
+      const response = await fetch(`${this.API_BASE_URL}/webhook/webhook/auth`, {
         method: 'POST',
         headers: {
           'Origin': 'https://landing-page-convers-h8da.bolt.host',
@@ -144,7 +144,7 @@ export class AuthManager {
   // Inscription
   public async register(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(`${this.API_BASE_URL}/webhook/auth`, {
+      const response = await fetch(`${this.API_BASE_URL}/webhook/webhook/auth`, {
         method: 'POST',
         headers: {
           'Origin': 'https://landing-page-convers-h8da.bolt.host',
