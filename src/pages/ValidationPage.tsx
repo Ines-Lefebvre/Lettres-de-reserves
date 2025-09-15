@@ -612,7 +612,7 @@ const ValidationPage: React.FC = () => {
             </>
           )}
           
-          {currentSubTab.id === 'accident' && validationData.documentType === 'MALADIE_PROFESSIONNELLE' && (
+          {currentSubTab.id === 'maladie' && validationData.documentType === 'MALADIE_PROFESSIONNELLE' && (
             <>
               {renderField('maladie.date', { label: 'Date de première constatation', required: true }, 'date')}
               {renderField('maladie.lieu', { label: 'Lieu d\'exposition', required: true })}
@@ -767,6 +767,35 @@ const ValidationPage: React.FC = () => {
 
     return (
       <div className="space-y-8">
+        {/* Statistiques de completion */}
+        <div className="bg-surface-muted rounded-lg p-6">
+          <h3 className="font-headline text-lg font-semibold text-text-primary mb-4">
+            Statistiques de completion
+          </h3>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-secondary mb-1">
+                {completionRate}%
+              </div>
+              <div className="text-text-muted text-sm">Completion globale</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-text-primary mb-1">
+                {completedFieldsCount}/{requiredFieldsCount}
+              </div>
+              <div className="text-text-muted text-sm">Champs obligatoires</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-text-primary mb-1">
+                {answeredQuestionsCount}/{requiredQuestionsCount}
+              </div>
+              <div className="text-text-muted text-sm">Questions obligatoires</div>
+            </div>
+          </div>
+        </div>
 
         {/* Résumé des données */}
         <div className="bg-surface-muted rounded-lg p-6">
@@ -951,7 +980,7 @@ const ValidationPage: React.FC = () => {
               </button>
             )}
           </div>
-            {currentSubTab.id === 'maladie' && validationData.documentType === 'MALADIE_PROFESSIONNELLE' && (
+
           {/* Help Text */}
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
