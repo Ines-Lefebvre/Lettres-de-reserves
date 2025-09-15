@@ -64,7 +64,7 @@ const HomePage: React.FC = () => {
       {/* Header Section */}
       <section className="bg-brand-dark text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 relative overflow-hidden" style={{ minHeight: '85vh' }}>
         {/* Background Video - Lazy Loaded */}
-        <div className="absolute inset-0 w-full h-full opacity-40">
+        <div className="absolute inset-0 w-full h-full opacity-60 z-0">
           <video
             className="w-full h-full object-cover"
             autoPlay
@@ -87,9 +87,9 @@ const HomePage: React.FC = () => {
         </div>
         
         {/* Dark overlay for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark opacity-40"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-dark to-brand-dark opacity-20 z-10"></div>
         
-        <div className="container mx-auto max-w-6xl relative z-10">
+        <div className="container mx-auto max-w-6xl relative z-20">
           <div className="text-center">
             <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
               <span className="text-secondary">Protégez</span> votre entreprise
