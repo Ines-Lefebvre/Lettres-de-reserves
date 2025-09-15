@@ -323,6 +323,64 @@ const ValidationPage: React.FC = () => {
     }));
   };
 
+  // Navigation intelligente
+  const handleNext = () => {
+    if (activeTab === 0) {
+      // Dans l'onglet "Données Extraites"
+      if (activeSubTab < dataSubTabs.length - 1) {
+        // Passer au sous-onglet suivant
+        setActiveSubTab(activeSubTab + 1);
+      } else {
+        // Dernier sous-onglet, passer à l'onglet principal suivant
+        setActiveTab(1);
+        setActiveSubTab(0);
+      }
+    } else if (activeTab < tabs.length - 1) {
+      // Autres onglets principaux
+      setActiveTab(activeTab + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (activeTab === 0) {
+      // Dans l'onglet "Données Extraites"
+      if (activeSubTab > 0) {
+        // Revenir au sous-onglet précédent
+        setActiveSubTab(activeSubTab - 1);
+      }
+      // Si on est au premier sous-onglet, on ne peut pas aller plus loin
+    } else if (activeTab === 1) {
+      // Depuis "Questions", revenir au dernier sous-onglet de "Données"
+      setActiveTab(0);
+      setActiveSubTab(dataSubTabs.length - 1);
+    } else if (activeTab > 0) {
+      // Autres onglets principaux
+      setActiveTab(activeTab - 1);
+    }
+  };
+
+  const canGoNext = () => {
+    if (activeTab === 0) {
+      // Dans "Données Extraites", on peut toujours avancer
+      return true;
+    } else if (activeTab < tabs.length - 1) {
+      // Autres onglets (sauf le dernier)
+      return true;
+    }
+    return false;
+  };
+
+  const canGoPrevious = () => {
+    if (activeTab === 0) {
+      // Dans "Données Extraites", on peut reculer si pas au premier sous-onglet
+      return activeSubTab > 0;
+    } else if (activeTab > 0) {
+      // Autres onglets
+      return true;
+    }
+    return false;
+  };
+
   const validateField = (path: string, value: string): boolean => {
     if (path.includes('siret')) {
       return /^\d{14}$/.test(value);
@@ -382,7 +440,11 @@ const ValidationPage: React.FC = () => {
   const dataSubTabs = [
     { id: 'employeur', label: 'Employeur', icon: Building },
     { id: 'victime', label: 'Victime', icon: User },
-    { id: 'accident', label: validationData?.documentType === 'MALADIE_PROFESSIONNELLE' ? 'Maladie' : 'Accident', icon: MapPin },
+    { 
+      id: validationData?.documentType === 'MALADIE_PROFESSIONNELLE' ? 'maladie' : 'accident', 
+      label: validationData?.documentType === 'MALADIE_PROFESSIONNELLE' ? 'Maladie' : 'Accident', 
+      icon: MapPin 
+    },
     ...(validationData?.documentType === 'AT_INTERIM' ? [{ id: 'interim', label: 'Intérim', icon: Building }] : []),
     { id: 'temoin', label: 'Témoin', icon: User },
     { id: 'tiers', label: 'Tiers', icon: User }
@@ -855,9 +917,9 @@ const ValidationPage: React.FC = () => {
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between">
             <div className="flex gap-4">
-              {activeTab > 0 && (
+              {canGoPrevious() && (
                 <button
-                  onClick={() => setActiveTab(activeTab - 1)}
+                  onClick={handlePrevious}
                   className="flex items-center gap-2 px-6 py-3 border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground rounded-lg font-semibold transition-all duration-300"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -865,12 +927,14 @@ const ValidationPage: React.FC = () => {
                 </button>
               )}
               
-              {activeTab < tabs.length - 1 && (
+              {canGoNext() && (
                 <button
-                  onClick={() => setActiveTab(activeTab + 1)}
+                  onClick={handleNext}
                   className="flex items-center gap-2 px-6 py-3 bg-secondary text-secondary-foreground hover:bg-opacity-90 rounded-lg font-semibold transition-all duration-300"
                 >
-                  Suivant
+                  {activeTab === 0 && activeSubTab < dataSubTabs.length - 1 ? 'Suivant' : 
+                   activeTab === 0 && activeSubTab === dataSubTabs.length - 1 ? 'Valider et passer aux Questions' :
+                   'Suivant'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}
@@ -887,7 +951,7 @@ const ValidationPage: React.FC = () => {
               </button>
             )}
           </div>
-
+            {currentSubTab.id === 'maladie' && validationData.documentType === 'MALADIE_PROFESSIONNELLE' && (
           {/* Help Text */}
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
