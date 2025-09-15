@@ -109,8 +109,7 @@ export class AuthManager {
         method: 'POST',
         mode: 'cors',
         headers: {
-          'Content-Type': 'application/json',
-          'Origin': 'https://landing-page-convers-h8da.bolt.host'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           action: 'login',
@@ -150,8 +149,7 @@ export class AuthManager {
         method: 'POST',
         mode: 'cors',
         headers: {
-          'Content-Type': 'application/json',
-          'Origin': 'https://landing-page-convers-h8da.bolt.host'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           action: 'register',
