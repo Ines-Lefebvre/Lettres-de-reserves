@@ -17,8 +17,8 @@ export class AuthManager {
   private static instance: AuthManager;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
-  private readonly API_BASE_URL = 'https://n8n.srv833062.hstgr.cloud';
-  private readonly AUTH_ENDPOINT = `${this.API_BASE_URL}/webhook/auth`;
+  private readonly API_BASE = 'https://n8n.srv833062.hstgr.cloud';
+  private readonly AUTH_ENDPOINT = `${this.API_BASE}/webhook/auth`;
 
   private constructor() {}
 
