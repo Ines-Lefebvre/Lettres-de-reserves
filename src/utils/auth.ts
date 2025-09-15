@@ -18,7 +18,7 @@ export class AuthManager {
   private readonly TOKEN_KEY = 'auth_token';
   private readonly USER_KEY = 'auth_user';
   private readonly API_BASE = 'https://n8n.srv833062.hstgr.cloud';
-  private readonly AUTH_ENDPOINT = import.meta.env.VITE_N8N_AUTH_URL || 'https://n8n.srv833062.hstgr.cloud/webhook/auth';
+  private readonly AUTH_ENDPOINT = 'https://n8n.srv833062.hstgr.cloud/webhook/auth';
 
   private constructor() {}
 
