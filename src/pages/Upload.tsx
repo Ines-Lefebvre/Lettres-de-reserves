@@ -2,6 +2,8 @@ import React from 'react';
 import { Upload as UploadIcon, FileText, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AuthGuard from '../components/AuthGuard';
+import { authManager } from '../utils/auth';
 
 const Upload: React.FC = () => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
@@ -62,9 +64,7 @@ const Upload: React.FC = () => {
         signal: controller.signal,
         mode: 'cors',
         credentials: 'omit',
-        headers: {
-          'Accept': 'application/json, text/plain, */*',
-        },
+        headers: authManager.getAuthHeaders(),
       });
      
       clearTimeout(timeoutId);
@@ -147,12 +147,13 @@ const Upload: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-brand-white">
-      {/* Header with background */}
-      <Header hasBackground={true} />
+    <AuthGuard>
+      <div className="min-h-screen bg-brand-white">
+        {/* Header with background */}
+        <Header hasBackground={true} />
 
-      {/* Main Content */}
-      <main className="min-h-screen pt-24 pb-16" role="main">
+        {/* Main Content */}
+        <main className="min-h-screen pt-24 pb-16" role="main">
         <div className="container mx-auto max-w-6xl px-4">
           <div className="text-center py-12 mb-8">
             <h1 className="font-headline text-4xl md:text-5xl font-bold text-brand-text-dark mb-6">
@@ -313,7 +314,8 @@ const Upload: React.FC = () => {
       </main>
 
       <Footer />
-    </div>
+      </div>
+    </AuthGuard>
   );
 };
 

@@ -7,6 +7,7 @@ import LazyVideo from './components/LazyVideo';
 import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
+import LoginPage from './pages/Login';
 
 const HomePage: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -27,7 +28,7 @@ const HomePage: React.FC = () => {
   };
 
   const handleCTAClick = () => {
-    window.location.href = '/upload';
+    window.location.href = '/login';
   };
 
   const toggleMenu = () => {
@@ -391,6 +392,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/upload" element={<UploadPage />} />
       <Route path="/response" element={<WebhookResponsePage />} />
       <Route path="/validation" element={<ValidationPage />} />
