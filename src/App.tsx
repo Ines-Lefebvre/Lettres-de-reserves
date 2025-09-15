@@ -366,9 +366,9 @@ const HomePage: React.FC = () => {
           <button 
             onClick={handleCTAClick}
             className="bg-secondary hover:bg-opacity-90 text-secondary-foreground px-6 py-3 rounded-lg font-headline font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg focus:outline-none focus:ring-4 focus:ring-secondary focus:ring-opacity-50"
-            aria-label="Téléverser votre déclaration d'accident"
+            aria-label="Accéder à l'espace client"
           >
-            Téléverser maintenant
+            Accéder à l'espace client
           </button>
         </div>
       </div>
