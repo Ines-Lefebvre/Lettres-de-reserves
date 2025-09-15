@@ -266,7 +266,10 @@ export class AuthManager {
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
         body: JSON.stringify({
           action,
           email,
