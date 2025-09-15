@@ -63,12 +63,12 @@ const HomePage: React.FC = () => {
       <Header onMenuToggle={setIsMenuOpen} />
 
       {/* Header Section */}
-      <section className="relative overflow-hidden min-h-screen">
+      <section className="relative overflow-hidden" style={{ minHeight: '75vh' }}>
         {/* Background */}
         <div className="absolute inset-0 bg-brand-dark"></div>
         
         {/* Contenu texte centré */}
-        <div className="relative z-10 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 min-h-screen flex items-center">
+        <div className="relative z-10 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 flex items-center" style={{ minHeight: '75vh' }}>
           <div className="container mx-auto max-w-6xl">
             <div className="text-center">
               <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
