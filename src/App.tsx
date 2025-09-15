@@ -62,27 +62,23 @@ const HomePage: React.FC = () => {
       <Header onMenuToggle={setIsMenuOpen} />
 
       {/* Header Section */}
-      <section className="relative overflow-hidden" style={{ minHeight: '85vh' }}>
-        {/* Background Video */}
-        <video
-          className="absolute inset-0 w-full h-full object-cover"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          poster="/posters/lawyer-video-poster.jpg"
-        >
-          <source src="/lawyer-video-720.mp4" type="video/mp4" media="(max-width: 768px)" />
-          <source src="/lawyer-video-1080.mp4" type="video/mp4" media="(min-width: 769px)" />
-          <source src="/lawyer-video-720.mp4" type="video/mp4" />
-        </video>
+      <section className="relative overflow-hidden min-h-screen">
+        {/* Background Video avec LazyVideo */}
+        <div className="absolute inset-0">
+          <LazyVideo 
+            className="w-full h-full"
+            posterUrl="/posters/lawyer-video-poster.jpg"
+            mobileVideoUrl="/lawyer-video-720.mp4"
+            desktopVideoUrl="/lawyer-video-1080.mp4"
+            ariaLabel="Vidéo de présentation du cabinet d'avocats"
+          />
+        </div>
         
-        {/* Overlay sombre pour la lisibilité du texte */}
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+        {/* Overlay pour la lisibilité du texte */}
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
         
-        {/* Contenu texte */}
-        <div className="relative z-10 bg-brand-dark bg-opacity-60 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 h-full flex items-center">
+        {/* Contenu texte centré */}
+        <div className="relative z-20 text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 min-h-screen flex items-center">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center">
               <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
@@ -93,21 +89,6 @@ const HomePage: React.FC = () => {
                 <span className="text-secondary font-semibold"> prête en urgence</span> pour éviter des milliers d'euros de surcoûts.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Fallback si pas de vidéo - Section avec image de fond */}
-      <section className="bg-brand-dark text-brand-white pt-32 pb-16 md:pt-40 md:pb-20 px-4 relative overflow-hidden hidden" style={{ minHeight: '85vh' }}>
-        <div className="container mx-auto max-w-6xl relative z-20">
-          <div className="text-center">
-            <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 leading-tight text-text-inverse">
-              <span className="text-secondary">Protégez</span> votre entreprise
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-gray-200 font-body leading-relaxed max-w-4xl mx-auto">
-              Une lettre de réserve signée par un avocat spécialisé en accident du travail & maladie professionnelle, 
-              <span className="text-secondary font-semibold"> prête en urgence</span> pour éviter des milliers d'euros de surcoûts.
-            </p>
           </div>
         </div>
       </section>
