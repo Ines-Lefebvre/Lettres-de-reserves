@@ -8,6 +8,13 @@ import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
 import LoginPage from './pages/Login';
+import { authManager } from './utils/auth';
+
+// Test automatique de l'authentification
+if (process.env.NODE_ENV === 'development') {
+  console.log('🧪 Mode développement - Test de l\'authentification...');
+  authManager.quickTest();
+}
 
 const HomePage: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
