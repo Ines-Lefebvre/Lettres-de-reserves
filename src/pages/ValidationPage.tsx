@@ -897,7 +897,6 @@ const ValidationPage: React.FC = () => {
                 <ul className="space-y-1">
                   <li>• Les champs marqués d'une étoile (*) sont obligatoires</li>
                   <li>• Vos modifications sont sauvegardées automatiquement</li>
-                  <li>• Un taux de completion de {validationData.completionStats.requiredCompletionRate}% minimum est requis pour continuer</li>
                 </ul>
               </div>
             </div>
