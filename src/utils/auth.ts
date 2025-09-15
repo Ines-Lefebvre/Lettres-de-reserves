@@ -90,7 +90,9 @@ export class AuthManager {
   // Headers pour les requêtes authentifiées
   public getAuthHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Origin': window.location.origin
     };
 
     const token = this.getToken();
@@ -109,8 +111,10 @@ export class AuthManager {
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
+        credentials: 'omit',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Origin': window.location.origin
         },
         body: JSON.stringify({
@@ -171,8 +175,10 @@ export class AuthManager {
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
+        credentials: 'omit',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Origin': window.location.origin
         },
         body: JSON.stringify({
@@ -266,8 +272,10 @@ export class AuthManager {
       const response = await fetch(this.AUTH_ENDPOINT, {
         method: 'POST',
         mode: 'cors',
+        credentials: 'omit',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Origin': window.location.origin
         },
         body: JSON.stringify({
