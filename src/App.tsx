@@ -8,12 +8,19 @@ import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
 import LoginPage from './pages/Login';
-import { authManager } from './utils/auth';
+import './utils/auth';
+
+// Import du module auth pour les tests
+const authManager = (await import('./utils/auth')).authManager;
 
 // Test automatique de l'authentification
 if (process.env.NODE_ENV === 'development') {
   console.log('🧪 Mode développement - Test de l\'authentification...');
-  authManager.quickTest();
+  setTimeout(() => {
+    import('./utils/auth').then(({ authManager }) => {
+      authManager.quickTest();
+    });
+  }, 1000);
 }
 
 const HomePage: React.FC = () => {

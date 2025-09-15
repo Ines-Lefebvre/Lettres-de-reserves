@@ -311,3 +311,4 @@ export class AuthManager {
 }
 
 // Instance globale
+export const authManager = AuthManager.getInstance();
