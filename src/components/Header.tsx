@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import UserInfo from './UserInfo';
+import { authManager } from '../utils/auth';
 
 interface HeaderProps {
   onMenuToggle?: (isOpen: boolean) => void;
@@ -9,6 +11,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = 'mobile-menu';
+  const isAuthenticated = authManager.isTokenValid();
 
   const toggleMenu = () => {
     const newState = !isMenuOpen;
@@ -58,20 +61,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) 
           </a>
         </div>
         
-        {/* Burger Menu Button */}
-        <button
-          onClick={toggleMenu}
-          className="text-brand-white hover:text-brand-accent transition-colors duration-300 p-2"
-          aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          aria-controls={menuId}
-          aria-expanded={isMenuOpen}
-        >
-          {isMenuOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
-        </button>
+        <div className="flex items-center gap-4">
+          {/* Informations utilisateur si connecté */}
+          {isAuthenticated && <UserInfo />}
+          
+          {/* Burger Menu Button */}
+          <button
+            onClick={toggleMenu}
+            className="text-brand-white hover:text-brand-accent transition-colors duration-300 p-2"
+            aria-label={isMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-controls={menuId}
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </button>
+        </div>
       </div>
       
       {/* Mobile Menu Dropdown */}
@@ -84,10 +92,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) 
         >
           <nav className="container mx-auto max-w-6xl px-4 py-4" role="navigation" aria-label="Navigation principale">
             <ul className="space-y-4">
+              {!isAuthenticated && (
+                <li>
+                  <a 
+                    href="/login" 
+                    className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Connexion
+                  </a>
+                </li>
+              )}
               <li>
                 <a 
                   href="/validation" 
-                  className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
+                  className={`block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1 ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Validation des données
@@ -96,7 +115,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) 
               <li>
                 <a 
                   href="/upload" 
-                  className="block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1"
+                  className={`block text-brand-white hover:text-brand-accent focus:text-brand-accent transition-colors duration-300 font-body focus:outline-none focus:ring-2 focus:ring-brand-accent focus:ring-opacity-50 rounded px-2 py-1 ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Téléverser un document

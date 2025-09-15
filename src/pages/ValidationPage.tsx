@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AuthGuard from '../components/AuthGuard';
 
 // Types pour les données
 interface ValidationData {
@@ -847,10 +848,11 @@ const ValidationPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      <Header hasBackground={true} />
+    <AuthGuard>
+      <div className="min-h-screen bg-surface">
+        <Header hasBackground={true} />
 
-      <main className="min-h-screen pt-24 pb-16">
+        <main className="min-h-screen pt-24 pb-16">
         <div className="container mx-auto max-w-6xl px-4">
           {/* Header */}
           <div className="mb-8">
@@ -998,7 +1000,8 @@ const ValidationPage: React.FC = () => {
       </main>
 
       <Footer />
-    </div>
+      </div>
+    </AuthGuard>
   );
 };
 
