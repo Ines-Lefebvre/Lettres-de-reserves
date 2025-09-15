@@ -255,6 +255,37 @@ export class AuthManager {
       window.location.href = redirectUrl;
     }
   }
+
+  // Fonction de test pour valider l'endpoint
+  public async testEndpoint(action: 'login' | 'register' = 'register'): Promise<void> {
+    try {
+      console.log('🧪 Test de l\'endpoint:', this.AUTH_ENDPOINT);
+      
+      const response = await fetch(this.AUTH_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: action,
+          email: 'franck.lapuyade@gmail.com',
+          password: '123456789'
+        })
+      });
+      
+      const data = await response.text();
+      console.log('✅ SUCCESS:', data);
+      
+      // Essayer de parser en JSON si possible
+      try {
+        const jsonData = JSON.parse(data);
+        console.log('📦 Parsed JSON:', jsonData);
+      } catch {
+        console.log('📄 Response is not JSON');
+      }
+      
+    } catch (error) {
+      console.error('❌ ERROR:', error);
+    }
+  }
 }
 
 // Instance globale
