@@ -18,6 +18,7 @@ import {
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AuthGuard from '../components/AuthGuard';
+import { n8nApi } from '../utils/n8nApiClient';
 
 // Types pour les données
 interface ValidationData {
@@ -103,6 +104,48 @@ const ValidationPage: React.FC = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Charger les données de session
+  useEffect(() => {
+    const sessionData = n8nApi.getSessionData();
+    
+    if (sessionData.requestId && sessionData.extractedData) {
+      // Utiliser les vraies données de la session
+      const realData: ValidationData = {
+        success: true,
+        sessionId: sessionData.requestId,
+        documentType: sessionData.extractedData.documentType || "AT_NORMALE",
+        extractedData: sessionData.extractedData,
+        validationFields: sessionData.extractedData.validationFields || {},
+        contextualQuestions: sessionData.extractedData.contextualQuestions || [],
+        completionStats: {
+          completionRate: 0,
+          requiredCompletionRate: 90
+        }
+      };
+      
+      setValidationData(realData);
+      setFormData(realData.extractedData);
+      setIsLoading(false);
+    } else {
+      // Fallback sur les données de démonstration
+      setTimeout(() => {
+        setValidationData(demoData);
+        setFormData(demoData.extractedData);
+        setCompletionRate(demoData.completionStats.completionRate);
+        
+        // Charger les données sauvegardées localement
+        const savedData = localStorage.getItem(`validation_${demoData.sessionId}`);
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          setFormData(parsed.formData || demoData.extractedData);
+          setQuestionResponses(parsed.questionResponses || {});
+        }
+        
+        setIsLoading(false);
+      }, 1000);
+    }
+  }, []);
 
   // Données de démonstration
   const demoData: ValidationData = {
@@ -222,25 +265,6 @@ const ValidationPage: React.FC = () => {
       requiredCompletionRate: 90
     }
   };
-
-  useEffect(() => {
-    // Simuler le chargement des données
-    setTimeout(() => {
-      setValidationData(demoData);
-      setFormData(demoData.extractedData);
-      setCompletionRate(demoData.completionStats.completionRate);
-      
-      // Charger les données sauvegardées localement
-      const savedData = localStorage.getItem(`validation_${demoData.sessionId}`);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        setFormData(parsed.formData || demoData.extractedData);
-        setQuestionResponses(parsed.questionResponses || {});
-      }
-      
-      setIsLoading(false);
-    }, 1000);
-  }, []);
 
   // Auto-save
   useEffect(() => {
@@ -411,25 +435,40 @@ const ValidationPage: React.FC = () => {
   const handleValidateAndContinue = () => {
     if (!validationData) return;
     
-    const outputData = {
-      sessionId: validationData.sessionId,
-      documentType: validationData.documentType,
-      validatedData: formData,
-      questionResponses,
-      validationStats: {
-        fieldsModified: [], // À implémenter si nécessaire
-        completionRate,
-        userValidated: true
-      },
-      readyForPayment: completionRate >= validationData.completionStats.requiredCompletionRate
+    // Appeler l'API de validation
+    const validateAndProceed = async () => {
+      try {
+        const result = await n8nApi.validateFields({
+          ...formData,
+          questionResponses,
+          completionRate
+        });
+        
+        if (result.ok && result.data?.payment?.checkoutUrl) {
+          // Rediriger vers Stripe Checkout
+          window.location.href = result.data.payment.checkoutUrl;
+        } else {
+          console.error('Erreur validation:', result.error);
+          // Fallback vers une page de paiement locale
+          navigate('/payment', { 
+            state: { 
+              validationData: {
+                sessionId: validationData.sessionId,
+                validatedData: formData,
+                questionResponses,
+                completionRate
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors de la validation:', error);
+        // Fallback
+        navigate('/payment');
+      }
     };
     
-    console.log('Données validées:', outputData);
-    
-    // Rediriger vers la page de paiement ou suivante
-    navigate('/payment', { 
-      state: { validationData: outputData }
-    });
+    validateAndProceed();
   };
 
   const tabs = [

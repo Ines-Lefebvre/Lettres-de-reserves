@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { authManager } from '../utils/auth';
+import { n8nApi } from '../utils/n8nApiClient';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -11,12 +11,12 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, fallback }) => {
 
   useEffect(() => {
     const checkAuth = () => {
-      const isValid = authManager.isTokenValid();
+      const isValid = n8nApi.isAuthenticated();
       setIsAuthenticated(isValid);
       
       if (!isValid) {
-        // Redirection gérée par authManager.requireAuth()
-        authManager.requireAuth();
+        // Redirection vers la page de connexion
+        window.location.href = '/login';
       }
     };
 

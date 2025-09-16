@@ -8,15 +8,16 @@ import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
 import LoginPage from './pages/Login';
-import { authManager } from './utils/auth';
-import './utils/auth';
+import { n8nApi } from './utils/n8nApiClient';
+import './utils/debugUtils';
 
 // Test automatique de l'authentification
 if (process.env.NODE_ENV === 'development') {
-  console.log('🧪 Mode développement - Test de l\'authentification...');
-  console.log('⚠️ Tests automatiques désactivés pour éviter les erreurs CORS');
+  console.log('🧪 Mode développement - API n8n initialisée');
   console.log('💡 Pour tester manuellement dans la console :');
-  console.log('   authManager.testEndpoint("register", "franck.lapuyade@gmail.com", "123456789")');
+  console.log('   n8nApi.authenticate("email@test.com", "password", "register")');
+  console.log('   DebugUtils.showDebugPanel() // pour le panel de debug');
+  console.log('   Ajoutez ?debug=1 à l\'URL pour activer le mode debug');
 }
 
 const HomePage: React.FC = () => {
