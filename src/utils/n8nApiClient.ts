@@ -57,12 +57,12 @@ export class N8nApiClient {
   private readonly requestIdKey = 'n8n_request_id';
   private debugMode = false;
 
-  // Endpoints corrigés
+  // Endpoints de production
   private readonly endpoints = {
-    auth: '/webhook-test/auth',
-    upload: '/webhook-test/upload',
-    validate: '/webhook-test/validate',
-    health: '/webhook-test/health'
+    auth: '/webhook/auth',
+    upload: '/webhook/upload',
+    validate: '/webhook/validate',
+    health: '/webhook/health'
   };
 
   constructor() {
