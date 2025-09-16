@@ -1,0 +1,99 @@
+{
+  "name": "Webhook Upload - Simple CORS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "upload",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-upload",
+      "name": "Webhook Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation CORS et extraction des données\nconst allowedOrigins = ['https://landing-page-convers-h8da.bolt.host'];\nconst requestOrigin = $request.headers.origin;\n\nconsole.log('🔒 CORS Check Upload:', {\n  requestOrigin,\n  allowedOrigins,\n  method: $request.method,\n  contentType: $request.headers['content-type']\n});\n\n// Vérification origine\nif (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {\n  console.log('❌ CORS BLOCKED:', requestOrigin);\n  return {\n    statusCode: 403,\n    headers: {\n      'Content-Type': 'application/json',\n      'Access-Control-Allow-Origin': requestOrigin || '*'\n    },\n    body: {\n      ok: false,\n      error: 'origin_not_allowed',\n      requestedOrigin: requestOrigin\n    }\n  };\n}\n\n// Extraction des données du FormData\nconst formData = $request.body;\nconst file = formData.file;\nconst filename = formData.filename;\nconst filesize = formData.filesize;\nconst timestamp = formData.timestamp;\nconst token = formData.token;\nconst requestId = formData.requestId;\nconst idempotencyKey = formData.idempotencyKey;\n\nconsole.log('📁 Upload Request:', {\n  filename,\n  filesize,\n  hasFile: !!file,\n  hasToken: !!token,\n  requestId,\n  idempotencyKey\n});\n\n// Validation des champs requis\nif (!file || !filename || !token) {\n  return {\n    statusCode: 400,\n    headers: {\n      'Content-Type': 'application/json',\n      'Access-Control-Allow-Origin': requestOrigin\n    },\n    body: {\n      ok: false,\n      error: 'missing_fields',\n      message: 'File, filename et token sont requis'\n    }\n  };\n}\n\n// Validation du token (basique)\nif (!token.startsWith('jwt_')) {\n  return {\n    statusCode: 401,\n    headers: {\n      'Content-Type': 'application/json',\n      'Access-Control-Allow-Origin': requestOrigin\n    },\n    body: {\n      ok: false,\n      error: 'invalid_token',\n      message: 'Token invalide'\n    }\n  };\n}\n\n// Validation du fichier\nif (parseInt(filesize) > 15 * 1024 * 1024) { // 15MB\n  return {\n    statusCode: 400,\n    headers: {\n      'Content-Type': 'application/json',\n      'Access-Control-Allow-Origin': requestOrigin\n    },\n    body: {\n      ok: false,\n      error: 'file_too_large',\n      message: 'Le fichier ne doit pas dépasser 15MB'\n    }\n  };\n}\n\nif (!filename.toLowerCase().endsWith('.pdf')) {\n  return {\n    statusCode: 400,\n    headers: {\n      'Content-Type': 'application/json',\n      'Access-Control-Allow-Origin': requestOrigin\n    },\n    body: {\n      ok: false,\n      error: 'invalid_file_type',\n      message: 'Seuls les fichiers PDF sont acceptés'\n    }\n  };\n}\n\n// Passer les données au nœud suivant\nreturn {\n  validatedOrigin: requestOrigin,\n  file,\n  filename,\n  filesize,\n  timestamp,\n  token,\n  requestId: requestId || 'req_' + Date.now(),\n  idempotencyKey,\n  processedAt: new Date().toISOString()\n};"
+      },
+      "id": "cors-validation-upload",
+      "name": "CORS Validation Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulation du traitement OCR\nconst { file, filename, requestId, validatedOrigin } = $input.first();\n\nconsole.log('🔍 OCR Processing:', { filename, requestId });\n\n// Simulation de données extraites par OCR\n// En production, ici tu ferais :\n// - Sauvegarder le fichier\n// - Lancer l'OCR (Tesseract, Google Vision, etc.)\n// - Parser les données selon le type de document\n\nconst extractedData = {\n  documentType: 'AT_NORMALE',\n  extractedFields: {\n    employeur: {\n      nom_raison_sociale: 'ACME Corporation',\n      siret: '12345678901234',\n      adresse: '123 Rue de la Paix, 75001 Paris'\n    },\n    victime: {\n      nom: 'MARTIN',\n      prenom: 'Jean',\n      numero_secu: '123456789012345',\n      date_naissance: '1985-03-15'\n    },\n    accident: {\n      date: '2024-01-15',\n      heure: '14:30',\n      lieu: 'Atelier de production',\n      description: 'Chute d\\'une échelle lors de maintenance'\n    }\n  },\n  ocrConfidence: 0.92,\n  validationFields: {\n    'employeur.nom_raison_sociale': {\n      label: 'Raison sociale employeur',\n      value: 'ACME Corporation',\n      required: true,\n      isEmpty: false,\n      needsValidation: false\n    },\n    'employeur.siret': {\n      label: 'SIRET',\n      value: '12345678901234',\n      required: true,\n      isEmpty: false,\n      needsValidation: true\n    },\n    'victime.nom': {\n      label: 'Nom de la victime',\n      value: 'MARTIN',\n      required: true,\n      isEmpty: false,\n      needsValidation: false\n    },\n    'victime.numero_secu': {\n      label: 'Numéro de sécurité sociale',\n      value: '123456789012345',\n      required: true,\n      isEmpty: false,\n      needsValidation: true\n    }\n  },\n  contextualQuestions: [\n    {\n      id: 'hors_horaires_1',\n      question: 'L\\'accident s\\'est-il produit en dehors des heures de travail ?',\n      type: 'boolean',\n      category: 'hors_horaires',\n      required: true\n    },\n    {\n      id: 'tiers_responsable_1',\n      question: 'Un tiers est-il responsable de l\\'accident ?',\n      type: 'boolean',\n      category: 'tiers_responsable'\n    }\n  ]\n};\n\nreturn {\n  statusCode: 200,\n  headers: {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': validatedOrigin\n  },\n  body: {\n    ok: true,\n    requestId,\n    next: '/validation',\n    data: extractedData,\n    message: 'Document analysé avec succès'\n  }\n};"
+      },
+      "id": "ocr-processing",
+      "name": "OCR Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "={{ $json.headers['Access-Control-Allow-Origin'] }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "response-upload",
+      "name": "Response Upload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "webhook-upload": {
+      "main": [
+        [
+          {
+            "node": "cors-validation-upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cors-validation-upload": {
+      "main": [
+        [
+          {
+            "node": "ocr-processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ocr-processing": {
+      "main": [
+        [
+          {
+            "node": "response-upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
