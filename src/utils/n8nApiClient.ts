@@ -57,6 +57,14 @@ export class N8nApiClient {
   private readonly requestIdKey = 'n8n_request_id';
   private debugMode = false;
 
+  // Endpoints corrigés
+  private readonly endpoints = {
+    auth: '/webhook-test/auth',
+    upload: '/webhook-test/upload',
+    validate: '/webhook-test/validate',
+    health: '/webhook-test/health'
+  };
+
   constructor() {
     // Activer le mode debug si paramètre URL présent
     this.debugMode = new URLSearchParams(window.location.search).has('debug');
@@ -214,7 +222,7 @@ export class N8nApiClient {
     formData.append('email', email);
     formData.append('password', password);
 
-    const result = await this.makeSimpleRequest<AuthResponse>('/webhook/auth', formData);
+    const result = await this.makeSimpleRequest<AuthResponse>(this.endpoints.auth, formData);
 
     // Stocker le token si succès
     if (result.ok && result.data?.token) {
@@ -259,7 +267,7 @@ export class N8nApiClient {
     formData.append('filesize', file.size.toString());
     formData.append('timestamp', new Date().toISOString());
 
-    const result = await this.makeSimpleRequest<UploadResponse>('/webhook/upload', formData, true);
+    const result = await this.makeSimpleRequest<UploadResponse>(this.endpoints.upload, formData, true);
 
     // Stocker le requestId pour la validation
     if (result.ok && result.data?.requestId) {
@@ -309,7 +317,7 @@ export class N8nApiClient {
     formData.append('email', email);
     formData.append('fieldsEdited', JSON.stringify(fieldsEdited));
 
-    return await this.makeSimpleRequest<ValidationResponse>('/webhook/validate', formData, true);
+    return await this.makeSimpleRequest<ValidationResponse>(this.endpoints.validate, formData, true);
   }
 
   // Utilitaires
@@ -345,7 +353,7 @@ export class N8nApiClient {
       const formData = new FormData();
       formData.append('test', 'connectivity');
       
-      const response = await fetch(`${this.baseUrl}/webhook/health`, {
+      const response = await fetch(`${this.baseUrl}${this.endpoints.health}`, {
         method: 'POST',
         mode: 'cors',
         body: formData
