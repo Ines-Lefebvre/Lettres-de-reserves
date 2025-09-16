@@ -34,7 +34,7 @@ export class DebugUtils {
   }
 
   static async testAuthFlow(email: string = 'test@example.com', password: string = 'test123'): Promise<void> {
-    console.log('🧪 Test du flux d\'authentification...');
+    console.log('🧪 Test du flux d\'authentification Simple CORS...');
     
     try {
       // Test inscription
@@ -68,7 +68,7 @@ export class DebugUtils {
   }
 
   static async testFileUpload(): Promise<void> {
-    console.log('📁 Test d\'upload de fichier...');
+    console.log('📁 Test d\'upload de fichier Simple CORS...');
     
     // Créer un fichier PDF factice pour le test
     const testPdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n/Pages 2 0 R\n>>\nendobj\n2 0 obj\n<<\n/Type /Pages\n/Kids [3 0 R]\n/Count 1\n>>\nendobj\n3 0 obj\n<<\n/Type /Page\n/Parent 2 0 R\n/MediaBox [0 0 612 792]\n>>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer\n<<\n/Size 4\n/Root 1 0 R\n>>\nstartxref\n174\n%%EOF';
@@ -141,6 +141,50 @@ export class DebugUtils {
 
     // Exposer les méthodes globalement pour les boutons
     (window as any).DebugUtils = DebugUtils;
+  }
+
+  static async testEndpoint(action: 'login' | 'register' = 'register', email: string = 'franck.lapuyade@gmail.com', password: string = '123456789'): Promise<void> {
+    try {
+      console.log('🧪 Test Simple CORS de l\'endpoint n8n');
+      console.log('📧 Email:', email);
+      console.log('🔑 Action:', action);
+      
+      const formData = new FormData();
+      formData.append('action', action);
+      formData.append('email', email);
+      formData.append('password', password);
+      
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/auth', {
+        method: 'POST',
+        mode: 'cors',
+        body: formData
+      });
+      
+      console.log('📡 Status:', response.status);
+      console.log('📡 Headers:', Object.fromEntries(response.headers.entries()));
+      
+      const text = await response.text();
+      console.log('📄 Response:', text);
+      
+      try {
+        const json = JSON.parse(text);
+        console.log('📊 JSON:', json);
+      } catch {
+        console.log('⚠️ Réponse non-JSON');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur:', error);
+    }
+  }
+
+  // Test rapide depuis la console
+  public async quickTest(): Promise<void> {
+    console.log('🚀 Test rapide Simple CORS...');
+    console.log('🔄 Aucun préflight OPTIONS ne devrait apparaître');
+    console.log('💡 Pour tester manuellement, utilisez :');
+    console.log('   n8nApi.authenticate("email@test.com", "password", "register")');
+    console.log('   DebugUtils.testCorsConnectivity() // Test simple');
   }
 }
 

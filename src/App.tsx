@@ -13,11 +13,12 @@ import './utils/debugUtils';
 
 // Test automatique de l'authentification
 if (process.env.NODE_ENV === 'development') {
-  console.log('🧪 Mode développement - API n8n initialisée');
+  console.log('🧪 Mode développement - API n8n Simple CORS initialisée');
   console.log('💡 Pour tester manuellement dans la console :');
   console.log('   n8nApi.authenticate("email@test.com", "password", "register")');
   console.log('   DebugUtils.showDebugPanel() // pour le panel de debug');
-  console.log('   Ajoutez ?debug=1 à l\'URL pour activer le mode debug');
+  console.log('   Ajoutez ?debug=1 à l\'URL pour voir les logs Simple CORS');
+  console.log('⚠️  Aucune requête OPTIONS ne devrait apparaître dans Network');
 }
 
 const HomePage: React.FC = () => {
