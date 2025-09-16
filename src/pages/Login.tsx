@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { authManager } from '../utils/auth';
+import { n8nApi } from '../utils/n8nApiClient';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ const Login: React.FC = () => {
 
   // Rediriger si déjà connecté
   useEffect(() => {
-    if (authManager.isTokenValid()) {
+    if (n8nApi.isAuthenticated()) {
       navigate('/upload');
     }
   }, [navigate]);
@@ -80,20 +80,19 @@ const Login: React.FC = () => {
     setSuccess('');
 
     try {
-      let result;
-      
-      if (activeTab === 'login') {
-        result = await authManager.login(formData.email, formData.password);
-      } else {
-        result = await authManager.register(formData.email, formData.password);
-      }
+      const result = await n8nApi.authenticate(
+        formData.email, 
+        formData.password, 
+        activeTab
+      );
 
       if (result.success) {
         setSuccess(activeTab === 'login' ? 'Connexion réussie !' : 'Inscription réussie !');
         
         // Redirection après un court délai
         setTimeout(() => {
-          authManager.redirectAfterLogin();
+          const redirectUrl = result.data?.redirect || '/upload';
+          navigate(redirectUrl);
         }, 1000);
       } else {
         setError(result.error || 'Une erreur est survenue');

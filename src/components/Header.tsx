@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import UserInfo from './UserInfo';
-import { authManager } from '../utils/auth';
+import { n8nApi } from '../utils/n8nApiClient';
 
 interface HeaderProps {
   onMenuToggle?: (isOpen: boolean) => void;
@@ -11,7 +11,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onMenuToggle, hasBackground = false }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = 'mobile-menu';
-  const isAuthenticated = authManager.isTokenValid();
+  const isAuthenticated = n8nApi.isAuthenticated();
 
   const toggleMenu = () => {
     const newState = !isMenuOpen;

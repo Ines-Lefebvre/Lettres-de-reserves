@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
-import { authManager } from '../utils/auth';
+import { n8nApi } from '../utils/n8nApiClient';
 
 const UserInfo: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [user, setUser] = useState(authManager.getCurrentUser());
+  const [user, setUser] = useState(n8nApi.getCurrentUser());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Fermer le dropdown si clic à l'extérieur
@@ -26,7 +26,8 @@ const UserInfo: React.FC = () => {
 
   // Gestion de la déconnexion
   const handleLogout = () => {
-    authManager.logout();
+    n8nApi.logout();
+    window.location.href = '/login';
   };
 
   // Obtenir les initiales de l'utilisateur
@@ -79,7 +80,7 @@ const UserInfo: React.FC = () => {
                   {user.email}
                 </p>
                 <p className="text-xs text-gray-500">
-                  ID: {user.userId.substring(0, 8)}...
+                  ID: {user.id.substring(0, 8)}...
                 </p>
               </div>
             </div>

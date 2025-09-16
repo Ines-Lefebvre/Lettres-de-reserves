@@ -3,24 +3,37 @@ import { Upload as UploadIcon, FileText, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import AuthGuard from '../components/AuthGuard';
-import { authManager } from '../utils/auth';
+import { n8nApi } from '../utils/n8nApiClient';
 
 const Upload: React.FC = () => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
-  const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
+  const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'success' | 'error' | 'validating'>('idle');
   const [errorMessage, setErrorMessage] = React.useState<string>('');
+  const [uploadProgress, setUploadProgress] = React.useState(0);
   
   // Refs pour la gestion du focus
   const statusMessageRef = React.useRef<HTMLDivElement>(null);
   const errorMessageRef = React.useRef<HTMLDivElement>(null);
   const submitButtonRef = React.useRef<HTMLButtonElement>(null);
 
-  const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Validation immédiate côté client
+      if (file.type !== 'application/pdf') {
+        setErrorMessage('Seuls les fichiers PDF sont acceptés');
+        setUploadStatus('error');
+        return;
+      }
+      
+      if (file.size > 15 * 1024 * 1024) { // 15MB
+        setErrorMessage('Le fichier ne doit pas dépasser 15 MB');
+        setUploadStatus('error');
+        return;
+      }
+      
       setSelectedFile(file);
       setUploadStatus('idle');
       setErrorMessage('');
@@ -30,61 +43,28 @@ const Upload: React.FC = () => {
   const handleSubmit = async () => {
     if (!selectedFile) return;
 
-    if (!webhookUrl) {
-      setErrorMessage('Configuration manquante : URL du webhook N8N non définie');
-      setUploadStatus('error');
-      // Focus sur le message d'erreur après mise à jour
-      setTimeout(() => {
-        errorMessageRef.current?.focus();
-      }, 100);
-      return;
-    }
-
     setIsUploading(true);
     setUploadStatus('idle');
     setErrorMessage('');
+    setUploadProgress(0);
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('timestamp', new Date().toISOString());
-      formData.append('filename', selectedFile.name);
-      formData.append('filesize', selectedFile.size.toString());
-      formData.append('filetype', selectedFile.type);
-      formData.append('user_agent', navigator.userAgent);
+      // Simulation du progrès d'upload
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      console.log('📤 Upload vers N8N:', selectedFile.name, `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`);
       
-      console.log('📤 Envoi vers N8N:', selectedFile.name, `(${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`);
-     
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-     
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-        mode: 'cors',
-        credentials: 'omit',
-        headers: authManager.getAuthHeaders(),
-      });
-     
-      clearTimeout(timeoutId);
+      const result = await n8nApi.uploadFile(selectedFile);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
-      console.log(`📥 Réponse N8N: ${response.status} ${response.statusText}`);
-
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        let responseData = null;
-        
-        try {
-          if (contentType.includes('application/json')) {
-            responseData = await response.json();
-            console.log('✅ Données JSON reçues:', responseData);
-          } else {
-            responseData = await response.text();
-            console.log('✅ Réponse texte reçue:', responseData.substring(0, 200) + '...');
-          }
-        } catch {
-          console.log('⚠️ Impossible de parser la réponse');
+      if (result.ok && result.data) {
+        // Stocker les données extraites pour la page de validation
+        if (result.data.data) {
+          n8nApi.setExtractedData(result.data.data);
         }
         
         setUploadStatus('success');
@@ -93,47 +73,25 @@ const Upload: React.FC = () => {
           statusMessageRef.current?.focus();
         }, 100);
         
+        // Redirection vers la validation après 2 secondes
         setTimeout(() => {
-          window.location.href = '/response?status=success&message=Votre document a été traité avec succès';
+          window.location.href = result.data?.next || '/validation';
         }, 2000);
       } else {
-        const contentType = response.headers.get('content-type') || '';
-        let errorMessage = `Erreur ${response.status}`;
-        
-        try {
-          if (contentType.includes('application/json')) {
-            const errorJson = await response.json();
-            errorMessage = errorJson.message || errorJson.error || `Erreur ${response.status}`;
-            if (errorJson.error === 'origin_not_allowed') {
-              errorMessage = 'Accès refusé : origine non autorisée';
-            }
-          } else {
-            const errorText = await response.text();
-            errorMessage = errorText || response.statusText;
-          }
-        } catch {
-          errorMessage = response.statusText || `Erreur HTTP ${response.status}`;
-        }
-        
-        console.error(`❌ Erreur N8N ${response.status}:`, errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(result.error || 'Erreur lors de l\'upload');
       }
     } catch (error) {
       console.error('Erreur:', error);
+      
       let userMessage = 'Erreur de connexion au serveur';
-     
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          userMessage = 'Délai d\'attente dépassé (30s). Veuillez réessayer.';
-        } else if (error.message === 'Failed to fetch') {
+        if (error.message === 'Failed to fetch') {
           userMessage = 'Impossible de contacter le serveur. Vérifiez votre connexion internet.';
-        } else if (error.message.includes('origine non autorisée')) {
-          userMessage = 'Accès refusé depuis ce domaine. Contactez le support.';
         } else {
           userMessage = error.message;
         }
       }
-     
+      
       setErrorMessage(userMessage);
       setUploadStatus('error');
       // Focus sur le message d'erreur
@@ -142,6 +100,7 @@ const Upload: React.FC = () => {
       }, 100);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -176,7 +135,7 @@ const Upload: React.FC = () => {
                   Déclaration d'accident
                 </h2>
                 <p className="text-gray-800 font-body">
-                  Format PDF uniquement • Taille max : 10 MB
+                  Format PDF uniquement • Taille max : 15 MB
                 </p>
               </div>
 
@@ -208,7 +167,7 @@ const Upload: React.FC = () => {
                           Cliquez pour téléverser votre fichier
                         </p>
                         <p className="text-gray-700 font-body" id="file-upload-description">
-                          ou glissez-déposez votre PDF ici
+                          ou glissez-déposez votre PDF ici (max 15MB)
                         </p>
                       </div>
                     )}
@@ -226,6 +185,23 @@ const Upload: React.FC = () => {
 
               {/* Status Messages */}
               <div aria-live="polite" aria-atomic="true">
+              {uploadStatus === 'validating' && (
+                <div 
+                  className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4" 
+                  role="status"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                    <p className="text-blue-800 font-semibold">
+                      Analyse du document en cours...
+                    </p>
+                  </div>
+                  <p className="text-blue-700 text-sm mt-2">
+                    Extraction des données par OCR, veuillez patienter.
+                  </p>
+                </div>
+              )}
+
               {uploadStatus === 'success' && (
                 <div 
                   ref={statusMessageRef}
@@ -238,11 +214,11 @@ const Upload: React.FC = () => {
                       <span className="text-white text-xs">✓</span>
                     </div>
                     <p className="text-green-800 font-semibold">
-                      Fichier envoyé avec succès !
+                      Document analysé avec succès !
                     </p>
                   </div>
                   <p className="text-green-700 text-sm mt-2">
-                    Vous recevrez votre lettre de réserves sous 24h.
+                    Redirection vers la validation des données...
                   </p>
                 </div>
               )}
@@ -275,6 +251,24 @@ const Upload: React.FC = () => {
               )}
               </div>
 
+              {/* Progress Bar */}
+              {isUploading && uploadProgress > 0 && (
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-brand-text-dark">
+                      {uploadProgress < 90 ? 'Upload en cours...' : 'Analyse du document...'}
+                    </span>
+                    <span className="text-sm text-gray-600">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-brand-accent h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
               {/* Info Box */}
               <div className="bg-brand-light bg-opacity-50 rounded-lg p-4 border-l-4 border-brand-accent">
                 <div className="flex items-start gap-3">
@@ -282,8 +276,8 @@ const Upload: React.FC = () => {
                     <p className="font-semibold mb-1">En cas de problème :</p>
                     <ul className="space-y-1 text-gray-800">
                       <li>• Vérifiez votre connexion internet</li>
-                      <li>• Assurez-vous que le fichier est au format PDF</li>
-                      <li>• Vérifiez que la taille ne dépasse pas 10 MB</li>
+                      <li>• Assurez-vous que le fichier est au format PDF uniquement</li>
+                      <li>• Vérifiez que la taille ne dépasse pas 15 MB</li>
                       <li>• Contactez le support si le problème persiste</li>
                     </ul>
                   </div>
@@ -300,7 +294,9 @@ const Upload: React.FC = () => {
                   aria-busy={isUploading}
                   aria-describedby={!selectedFile ? "button-help-text" : undefined}
                 >
-                  {isUploading ? 'Envoi en cours...' : 'Envoyer'}
+                  {isUploading ? (
+                    uploadProgress < 90 ? 'Upload en cours...' : 'Analyse en cours...'
+                  ) : 'Analyser le document'}
                 </button>
                 {!selectedFile && (
                   <p id="button-help-text" className="text-sm text-gray-700 mt-2 font-body">
