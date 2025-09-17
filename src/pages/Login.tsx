@@ -86,16 +86,16 @@ const Login: React.FC = () => {
         activeTab
       );
 
-      if (result.success) {
+      if (result.ok && result.data?.ok) {
         setSuccess(activeTab === 'login' ? 'Connexion réussie !' : 'Inscription réussie !');
         
         // Redirection après un court délai
         setTimeout(() => {
-          const redirectUrl = result.data?.redirect || '/upload';
+          const redirectUrl = result.data.redirect || '/upload';
           navigate(redirectUrl);
         }, 1000);
       } else {
-        setError(result.error || 'Une erreur est survenue');
+        setError(result.error || result.data?.message || 'Une erreur est survenue');
       }
     } catch (error) {
       console.error('Erreur auth:', error);
