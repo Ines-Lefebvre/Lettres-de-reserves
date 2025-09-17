@@ -17,12 +17,14 @@ export interface AuthRequest {
 
 export interface AuthResponse {
   ok: boolean;
-  token: string;
-  user: {
+  token?: string;
+  message?: string;
+  requestId?: string;
+  user?: {
     id: string;
     email: string;
   };
-  redirect: '/upload' | '/validation';
+  redirect?: '/upload' | '/validation';
 }
 
 export interface UploadResponse {
@@ -102,10 +104,25 @@ export class N8nApiClient {
     if (!token) return false;
 
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const now = Math.floor(Date.now() / 1000);
-      return payload.exp > now;
+      // Pour les tokens JWT factices de n8n
+      if (token.startsWith('jwt_')) {
+        const payload = JSON.parse(atob(token.substring(4)));
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+      }
+      
+      // Pour les vrais JWT
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        const now = Math.floor(Date.now() / 1000);
+        return payload.exp > now;
+      }
+      
+      // Si format inconnu, considérer comme valide temporairement
+      return true;
     } catch {
+      // En cas d'erreur de parsing, considérer comme invalide
       return false;
     }
   }
@@ -345,7 +362,7 @@ export class N8nApiClient {
     const result = await this.makeJsonRequest<AuthResponse>(this.endpoints.auth, payload);
 
     // Stocker le token si succès
-    if (result.ok && result.data?.token) {
+    if (result.ok && result.data?.ok && result.data?.token) {
       this.setToken(result.data.token);
       
       if (this.debugMode) {
@@ -446,10 +463,28 @@ export class N8nApiClient {
     if (!token || !this.isTokenValid()) return null;
 
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Pour les tokens JWT factices de n8n, extraire directement
+      if (token.startsWith('jwt_')) {
+        const payload = JSON.parse(atob(token.substring(4)));
+        return {
+          email: payload.email,
+          id: payload.userId || payload.id
+        };
+      }
+      
+      // Pour les vrais JWT
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        return {
+          email: payload.email,
+          id: payload.userId || payload.id || payload.sub
+        };
+      }
+      
       return {
-        email: payload.email,
-        id: payload.userId || payload.id
+        email: 'unknown',
+        id: 'unknown'
       };
     } catch {
       return null;
