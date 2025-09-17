@@ -109,20 +109,44 @@ const Login: React.FC = () => {
       const result = await response.json();
       console.log('📦 Response data:', result);
 
-      // ✅ GESTION CORRECTE DE LA RÉPONSE N8N
-      if (result.ok && result.token) {
-        // Succès - stocker le token
-        localStorage.setItem('n8n_auth_token', result.token);
-        console.log('✅ Token stocké:', result.token);
-        
-        setMessage(result.message || (activeTab === 'login' ? 'Connexion réussie !' : 'Inscription réussie !'));
-        
-        // Redirection après un court délai
-        setTimeout(() => {
-          navigate('/upload');
-        }, 1000);
+      // ✅ GESTION CORRECTE DE LA RÉPONSE N8N - Vérifier le champ "ok"
+      if (result.ok === true) {
+        // Succès
+        if (activeTab === 'register') {
+          // Inscription réussie - afficher message de succès
+          setMessage('Inscription réussie !');
+          console.log('✅ Inscription réussie pour:', formData.email);
+          
+          // Stocker le token si fourni
+          if (result.token) {
+            localStorage.setItem('n8n_auth_token', result.token);
+            console.log('✅ Token stocké:', result.token);
+          }
+          
+          // Redirection après un court délai
+          setTimeout(() => {
+            navigate('/upload');
+          }, 1500);
+        } else {
+          // Connexion réussie - stocker token et rediriger
+          if (result.token) {
+            localStorage.setItem('n8n_auth_token', result.token);
+            console.log('✅ Token stocké:', result.token);
+            
+            setMessage('Connexion réussie !');
+            console.log('✅ Connexion réussie pour:', formData.email);
+            
+            // Redirection immédiate vers /upload
+            setTimeout(() => {
+              navigate('/upload');
+            }, 1000);
+          } else {
+            setError('Token manquant dans la réponse');
+          }
+        }
       } else {
         // Échec - afficher le message d'erreur du backend
+        console.log('❌ Erreur d\'authentification:', result.message);
         setError(result.message || 'Une erreur est survenue');
       }
     } catch (error) {
