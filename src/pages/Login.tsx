@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { n8nApi } from '../utils/n8nApiClient';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -17,11 +16,12 @@ const Login: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [message, setMessage] = useState('');
 
   // Rediriger si déjà connecté
   useEffect(() => {
-    if (n8nApi.isAuthenticated()) {
+    const token = localStorage.getItem('n8n_auth_token');
+    if (token) {
       navigate('/upload');
     }
   }, [navigate]);
@@ -66,10 +66,10 @@ const Login: React.FC = () => {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
-    setSuccess('');
+    setMessage('');
   };
 
-  // Gestion soumission formulaire
+  // Gestion soumission formulaire - CORRECTION CRITIQUE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -77,29 +77,69 @@ const Login: React.FC = () => {
 
     setIsLoading(true);
     setError('');
-    setSuccess('');
+    setMessage('');
 
     try {
-      const result = await n8nApi.authenticate(
-        formData.email, 
-        formData.password, 
-        activeTab
-      );
+      console.log('🚀 Envoi authentification:', {
+        action: activeTab,
+        email: formData.email,
+        url: 'https://n8n.srv833062.hstgr.cloud/webhook/auth'
+      });
 
-      if (result.ok && result.data?.ok) {
-        setSuccess(activeTab === 'login' ? 'Connexion réussie !' : 'Inscription réussie !');
+      // ✅ APPEL CORRECT - JSON PUR
+      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: activeTab, // 'login' ou 'register'
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('📦 Response data:', result);
+
+      // ✅ GESTION CORRECTE DE LA RÉPONSE N8N
+      if (result.ok && result.token) {
+        // Succès - stocker le token
+        localStorage.setItem('n8n_auth_token', result.token);
+        console.log('✅ Token stocké:', result.token);
+        
+        setMessage(result.message || (activeTab === 'login' ? 'Connexion réussie !' : 'Inscription réussie !'));
         
         // Redirection après un court délai
         setTimeout(() => {
-          const redirectUrl = result.data.redirect || '/upload';
-          navigate(redirectUrl);
+          navigate('/upload');
         }, 1000);
       } else {
-        setError(result.error || result.data?.message || 'Une erreur est survenue');
+        // Échec - afficher le message d'erreur du backend
+        setError(result.message || 'Une erreur est survenue');
       }
     } catch (error) {
-      console.error('Erreur auth:', error);
-      setError('Erreur de connexion au serveur');
+      console.error('❌ Erreur auth:', error);
+      
+      let userMessage = 'Erreur de connexion au serveur';
+      if (error instanceof Error) {
+        if (error.message === 'Failed to fetch') {
+          userMessage = 'Impossible de contacter le serveur. Vérifiez votre connexion internet.';
+        } else if (error.message.includes('HTTP error')) {
+          userMessage = 'Erreur serveur. Veuillez réessayer plus tard.';
+        } else {
+          userMessage = error.message;
+        }
+      }
+      
+      setError(userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +149,7 @@ const Login: React.FC = () => {
   const handleTabChange = (tab: 'login' | 'register') => {
     setActiveTab(tab);
     setError('');
-    setSuccess('');
+    setMessage('');
     setFormData({
       email: '',
       password: '',
@@ -170,10 +210,10 @@ const Login: React.FC = () => {
               </div>
             )}
 
-            {success && (
+            {message && (
               <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className="text-green-700 text-sm">{success}</span>
+                <span className="text-green-700 text-sm">{message}</span>
               </div>
             )}
 
@@ -194,6 +234,7 @@ const Login: React.FC = () => {
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
                     placeholder="votre@email.com"
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -213,11 +254,13 @@ const Login: React.FC = () => {
                     className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
                     placeholder="••••••••"
                     required
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={isLoading}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -240,11 +283,13 @@ const Login: React.FC = () => {
                       className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
                       placeholder="••••••••"
                       required
+                      disabled={isLoading}
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      disabled={isLoading}
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -277,6 +322,7 @@ const Login: React.FC = () => {
                   <button
                     onClick={() => handleTabChange('register')}
                     className="text-brand-accent hover:text-brand-dark font-semibold"
+                    disabled={isLoading}
                   >
                     Créer un compte
                   </button>
@@ -287,6 +333,7 @@ const Login: React.FC = () => {
                   <button
                     onClick={() => handleTabChange('login')}
                     className="text-brand-accent hover:text-brand-dark font-semibold"
+                    disabled={isLoading}
                   >
                     Se connecter
                   </button>
