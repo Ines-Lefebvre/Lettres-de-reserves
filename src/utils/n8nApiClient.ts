@@ -1,4 +1,4 @@
-// Client API n8n Simple CORS (sans préflight)
+// Client API n8n avec support JSON et FormData
 export interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
@@ -69,7 +69,7 @@ export class N8nApiClient {
     // Activer le mode debug si paramètre URL présent
     this.debugMode = new URLSearchParams(window.location.search).has('debug');
     if (this.debugMode) {
-      console.log('🔧 N8nApiClient: Mode debug activé - Simple CORS');
+      console.log('🔧 N8nApiClient: Mode debug activé - JSON + FormData');
     }
   }
 
@@ -110,21 +110,21 @@ export class N8nApiClient {
     }
   }
 
-  // Méthode générique pour les requêtes Simple CORS
-  private async makeSimpleRequest<T>(
-    endpoint: string, 
-    formData: FormData,
+  // 🆕 Méthode pour requêtes JSON
+  private async makeJsonRequest<T>(
+    endpoint: string,
+    payload: Record<string, any>,
     requireAuth = false
   ): Promise<ApiResponse<T>> {
     const requestId = this.generateRequestId();
     
     try {
       if (this.debugMode) {
-        console.log(`🚀 Simple CORS Request [${requestId}]:`, {
+        console.log(`🚀 JSON Request [${requestId}]:`, {
           endpoint,
           requireAuth,
           hasToken: !!this.getToken(),
-          formDataKeys: Array.from(formData.keys())
+          payloadKeys: Object.keys(payload)
         });
       }
 
@@ -133,28 +133,37 @@ export class N8nApiClient {
         throw new Error('Token d\'authentification invalide ou expiré');
       }
 
-      // Ajouter le token dans le body si authentification requise
+      // Préparer les headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+
+      // Ajouter le token dans les headers si authentification requise
       if (requireAuth) {
         const token = this.getToken();
         if (token) {
-          formData.append('token', token);
+          headers['Authorization'] = `Bearer ${token}`;
         }
       }
 
-      // Ajouter requestId et idempotencyKey dans le body
-      formData.append('requestId', requestId);
-      formData.append('idempotencyKey', this.generateIdempotencyKey());
+      // Enrichir le payload avec requestId et idempotencyKey
+      const enrichedPayload = {
+        ...payload,
+        requestId,
+        idempotencyKey: this.generateIdempotencyKey(),
+        timestamp: new Date().toISOString()
+      };
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
         mode: 'cors',
-        // PAS de credentials: 'include'
-        // PAS de headers custom
-        body: formData
+        headers,
+        body: JSON.stringify(enrichedPayload)
       });
 
       if (this.debugMode) {
-        console.log(`📡 Simple CORS Response [${requestId}]:`, {
+        console.log(`📡 JSON Response [${requestId}]:`, {
           status: response.status,
           statusText: response.statusText,
           headers: Object.fromEntries(response.headers.entries())
@@ -186,7 +195,7 @@ export class N8nApiClient {
       }
 
       if (this.debugMode) {
-        console.log(`✅ Simple CORS Success [${requestId}]:`, data);
+        console.log(`✅ JSON Success [${requestId}]:`, data);
       }
 
       return {
@@ -199,7 +208,7 @@ export class N8nApiClient {
       const errorMessage = error instanceof Error ? error.message : 'Erreur de connexion';
       
       if (this.debugMode) {
-        console.error(`❌ Simple CORS Error [${requestId}]:`, error);
+        console.error(`❌ JSON Error [${requestId}]:`, error);
       }
 
       // Auto-logout si token expiré
@@ -215,14 +224,125 @@ export class N8nApiClient {
     }
   }
 
-  // Authentification (login/register) - application/x-www-form-urlencoded
-  async authenticate(email: string, password: string, action: 'login' | 'register'): Promise<ApiResponse<AuthResponse>> {
-    const formData = new FormData();
-    formData.append('action', action);
-    formData.append('email', email);
-    formData.append('password', password);
+  // 🔄 Méthode pour requêtes FormData (upload de fichiers)
+  private async makeFormDataRequest<T>(
+    endpoint: string, 
+    formData: FormData,
+    requireAuth = false
+  ): Promise<ApiResponse<T>> {
+    const requestId = this.generateRequestId();
+    
+    try {
+      if (this.debugMode) {
+        console.log(`🚀 FormData Request [${requestId}]:`, {
+          endpoint,
+          requireAuth,
+          hasToken: !!this.getToken(),
+          formDataKeys: Array.from(formData.keys())
+        });
+      }
 
-    const result = await this.makeSimpleRequest<AuthResponse>(this.endpoints.auth, formData);
+      // Vérifier l'authentification si requise
+      if (requireAuth && !this.isTokenValid()) {
+        throw new Error('Token d\'authentification invalide ou expiré');
+      }
+
+      // Préparer les headers (pas de Content-Type pour FormData)
+      const headers: Record<string, string> = {
+        'Accept': 'application/json'
+      };
+
+      // Ajouter le token dans les headers si authentification requise
+      if (requireAuth) {
+        const token = this.getToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+
+      // Ajouter requestId et idempotencyKey dans le FormData
+      formData.append('requestId', requestId);
+      formData.append('idempotencyKey', this.generateIdempotencyKey());
+      formData.append('timestamp', new Date().toISOString());
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        mode: 'cors',
+        headers,
+        body: formData
+      });
+
+      if (this.debugMode) {
+        console.log(`📡 FormData Response [${requestId}]:`, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+      }
+
+      // Gestion des erreurs HTTP
+      if (!response.ok) {
+        let errorMessage = `Erreur HTTP ${response.status}`;
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Parse de la réponse
+      const contentType = response.headers.get('content-type') || '';
+      let data: any;
+
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
+
+      if (this.debugMode) {
+        console.log(`✅ FormData Success [${requestId}]:`, data);
+      }
+
+      return {
+        ok: true,
+        data,
+        requestId
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur de connexion';
+      
+      if (this.debugMode) {
+        console.error(`❌ FormData Error [${requestId}]:`, error);
+      }
+
+      // Auto-logout si token expiré
+      if (errorMessage.includes('invalide') || errorMessage.includes('expiré')) {
+        this.removeToken();
+      }
+
+      return {
+        ok: false,
+        error: errorMessage,
+        requestId
+      };
+    }
+  }
+
+  // 🆕 Authentification (login/register) - JSON
+  async authenticate(email: string, password: string, action: 'login' | 'register'): Promise<ApiResponse<AuthResponse>> {
+    const payload = {
+      action,
+      email,
+      password
+    };
+
+    const result = await this.makeJsonRequest<AuthResponse>(this.endpoints.auth, payload);
 
     // Stocker le token si succès
     if (result.ok && result.data?.token) {
@@ -236,7 +356,7 @@ export class N8nApiClient {
     return result;
   }
 
-  // Upload de fichier - multipart/form-data
+  // 🔄 Upload de fichier - FormData (inchangé)
   async uploadFile(file: File): Promise<ApiResponse<UploadResponse>> {
     // Validation côté client
     if (!file) {
@@ -265,9 +385,8 @@ export class N8nApiClient {
     formData.append('file', file);
     formData.append('filename', file.name);
     formData.append('filesize', file.size.toString());
-    formData.append('timestamp', new Date().toISOString());
 
-    const result = await this.makeSimpleRequest<UploadResponse>(this.endpoints.upload, formData, true);
+    const result = await this.makeFormDataRequest<UploadResponse>(this.endpoints.upload, formData, true);
 
     // Stocker le requestId pour la validation
     if (result.ok && result.data?.requestId) {
@@ -281,7 +400,7 @@ export class N8nApiClient {
     return result;
   }
 
-  // Validation des champs - application/x-www-form-urlencoded
+  // 🆕 Validation des champs - JSON
   async validateFields(fieldsEdited: Record<string, any>): Promise<ApiResponse<ValidationResponse>> {
     const requestId = sessionStorage.getItem(this.requestIdKey);
     const token = this.getToken();
@@ -312,15 +431,16 @@ export class N8nApiClient {
       };
     }
 
-    const formData = new FormData();
-    formData.append('requestId', requestId);
-    formData.append('email', email);
-    formData.append('fieldsEdited', JSON.stringify(fieldsEdited));
+    const payload = {
+      requestId,
+      email,
+      fieldsEdited
+    };
 
-    return await this.makeSimpleRequest<ValidationResponse>(this.endpoints.validate, formData, true);
+    return await this.makeJsonRequest<ValidationResponse>(this.endpoints.validate, payload, true);
   }
 
-  // Utilitaires
+  // Utilitaires (inchangés)
   getCurrentUser(): { email: string; id: string } | null {
     const token = this.getToken();
     if (!token || !this.isTokenValid()) return null;
@@ -347,25 +467,18 @@ export class N8nApiClient {
     return this.isTokenValid();
   }
 
-  // Test de connectivité Simple CORS
+  // 🆕 Test de connectivité - JSON
   async testCorsConnectivity(): Promise<boolean> {
     try {
-      const formData = new FormData();
-      formData.append('test', 'connectivity');
-      
-      const response = await fetch(`${this.baseUrl}${this.endpoints.health}`, {
-        method: 'POST',
-        mode: 'cors',
-        body: formData
-      });
-      
-      return response.ok;
+      const payload = { test: 'connectivity' };
+      const result = await this.makeJsonRequest(this.endpoints.health, payload);
+      return result.ok;
     } catch {
       return false;
     }
   }
 
-  // Récupération des données de session
+  // Récupération des données de session (inchangé)
   getSessionData(): { requestId: string | null; extractedData: any } {
     const requestId = sessionStorage.getItem(this.requestIdKey);
     const extractedData = sessionStorage.getItem('extracted_data');
@@ -376,7 +489,7 @@ export class N8nApiClient {
     };
   }
 
-  // Stockage des données extraites
+  // Stockage des données extraites (inchangé)
   setExtractedData(data: any): void {
     sessionStorage.setItem('extracted_data', JSON.stringify(data));
   }
