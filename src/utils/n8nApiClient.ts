@@ -54,15 +54,15 @@ export interface ValidationResponse {
 }
 
 export class N8nApiClient {
-  private readonly baseUrl = 'https://n8n.srv833062.hstgr.cloud';
+  private readonly baseUrl = import.meta.env.VITE_N8N_UPLOAD_URL?.replace('/webhook/upload', '') || 'https://n8n.srv833062.hstgr.cloud';
   private readonly tokenKey = 'n8n_auth_token';
   private readonly requestIdKey = 'n8n_request_id';
   private debugMode = false;
 
   // Endpoints de production
   private readonly endpoints = {
-    auth: '/webhook/auth',
-    upload: '/webhook/upload',
+    auth: import.meta.env.VITE_N8N_AUTH_URL || '/webhook/auth',
+    upload: import.meta.env.VITE_N8N_UPLOAD_URL || '/webhook/upload',
     validate: '/webhook/validate',
     health: '/webhook/health'
   };

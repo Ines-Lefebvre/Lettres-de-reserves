@@ -83,11 +83,11 @@ const Login: React.FC = () => {
       console.log('🚀 Envoi authentification:', {
         action: activeTab,
         email: formData.email,
-        url: 'https://n8n.srv833062.hstgr.cloud/webhook/auth'
+        url: import.meta.env.VITE_N8N_AUTH_URL || 'https://n8n.srv833062.hstgr.cloud/webhook/auth'
       });
 
       // ✅ APPEL CORRECT - JSON PUR
-      const response = await fetch('https://n8n.srv833062.hstgr.cloud/webhook/auth', {
+      const response = await fetch(import.meta.env.VITE_N8N_AUTH_URL || 'https://n8n.srv833062.hstgr.cloud/webhook/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
