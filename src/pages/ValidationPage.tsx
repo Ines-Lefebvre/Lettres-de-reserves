@@ -38,23 +38,80 @@ export default function ValidationPage() {
       return; 
     }
     
-    // Insertion dans la table dossiers de Supabase
-    const { error } = await supabase.from('dossiers').insert({
-      request_id: rid || null,
-      user_id: session.user.id,
-      payload
-    });
-    
-    if (error) {
-      setMsg(error.message);
-    } else {
+    try {
+      // Recherche de l'upload correspondant
+      const { data: upload } = await supabase
+        .from('uploads')
+        .select('id')
+        .eq('request_id', rid)
+        .eq('user_id', session.user.id)
+        .single();
+      
+      // Insertion dans ocr_results si pas déjà fait
+      let ocrResultId = null;
+      if (upload) {
+        const { data: existingOcr } = await supabase
+          .from('ocr_results')
+          .select('id')
+          .eq('upload_id', upload.id)
+          .single();
+          
+        if (existingOcr) {
+          ocrResultId = existingOcr.id;
+        } else {
+          const { data: newOcr, error: ocrError } = await supabase
+            .from('ocr_results')
+            .insert({
+              upload_id: upload.id,
+              user_id: session.user.id,
+              document_type: payload.documentType || 'AT_NORMALE',
+              extracted_fields: payload.extractedFields || {},
+              ocr_confidence: payload.ocrConfidence || 0.0,
+              validation_fields: payload.validationFields || {},
+              contextual_questions: payload.contextualQuestions || []
+            })
+            .select('id')
+            .single();
+            
+          if (ocrError) throw ocrError;
+          ocrResultId = newOcr.id;
+        }
+      }
+      
+      // Insertion dans validations
+      const { error: validationError } = await supabase.from('validations').insert({
+        ocr_result_id: ocrResultId,
+        user_id: session.user.id,
+        validated_fields: payload,
+        validation_status: 'validated',
+        validated_at: new Date().toISOString()
+      });
+      
+      if (validationError) throw validationError;
+      
+      // Insertion legacy dans dossiers pour compatibilité
+      const { error: dossierError } = await supabase.from('dossiers').insert({
+        request_id: rid || null,
+        user_id: session.user.id,
+        payload
+      });
+      
+      if (dossierError) {
+        console.warn('Erreur sauvegarde dossier legacy:', dossierError);
+        // Continue malgré l'erreur legacy
+      }
+      
       // Nettoyage du sessionStorage après sauvegarde réussie
       sessionStorage.removeItem('extracted_data');
       sessionStorage.removeItem('request_id');
       
-      // Redirection vers la page de checkout/confirmation
+      // Redirection vers la page de confirmation
       nav('/response?status=success&message=Données validées et sauvegardées avec succès');
+      
+    } catch (error: any) {
+      setMsg(error?.message || 'Erreur lors de la sauvegarde');
     }
+    
     setSaving(false);
   };
 

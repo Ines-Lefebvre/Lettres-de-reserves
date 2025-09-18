@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
+import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText } from 'lucide-react';
@@ -23,18 +24,31 @@ export default function UploadPage() {
     setMsg(null);
     setLoading(true);
     
+    // Récupération du token utilisateur pour l'authentification
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setMsg('Session expirée, veuillez vous reconnecter');
+      nav('/login');
+      return;
+    }
+    
     const fd = new FormData();
     fd.append('file', file);
     fd.append('filename', file.name);
     fd.append('filesize', file.size.toString());
     fd.append('requestId', crypto.randomUUID());
     fd.append('timestamp', new Date().toISOString());
+    fd.append('token', `jwt_${session.access_token.substring(0, 20)}`); // Token simplifié pour N8N
     
     try {
-      const res = await fetch(url, { 
+      const res = await fetch(url, {
         method: 'POST', 
         body: fd, 
-        mode: 'cors'
+        mode: 'cors',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
+        }
       });
       
       if (!res.ok) {
@@ -45,6 +59,22 @@ export default function UploadPage() {
       
       // Vérification de la réponse N8N : {ok, requestId, next, data?}
       if (data?.ok && data?.next) {
+        // Enregistrement de l'upload dans Supabase
+        const { error: uploadError } = await supabase.from('uploads').insert({
+          user_id: session.user.id,
+          request_id: data.requestId,
+          filename: file.name,
+          filesize: file.size,
+          file_type: file.type,
+          upload_status: 'completed',
+          n8n_response: data
+        });
+        
+        if (uploadError) {
+          console.warn('Erreur sauvegarde upload:', uploadError);
+          // Continue malgré l'erreur de sauvegarde
+        }
+        
         // Stocker les données extraites pour la page de validation
         if (data.data) {
           sessionStorage.setItem('extracted_data', JSON.stringify(data.data));
