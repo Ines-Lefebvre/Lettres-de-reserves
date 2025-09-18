@@ -41,6 +41,9 @@ export default function UploadPage() {
     fd.append('token', `jwt_${session.access_token.substring(0, 20)}`); // Token simplifié pour N8N
     
     try {
+      console.log('🚀 Envoi vers N8N:', N8N_UPLOAD_URL);
+      console.log('📁 Fichier:', { name: file.name, size: file.size, type: file.type });
+      
       const res = await fetch(N8N_UPLOAD_URL, {
         method: 'POST', 
         body: fd, 
@@ -58,22 +61,41 @@ export default function UploadPage() {
       
       const data = await res.json();
       
+      console.log('📡 Réponse N8N:', data);
+      
       // Vérification de la réponse N8N : {ok, requestId, next, data?}
       if (data?.ok && data?.next) {
+        console.log('✅ N8N OK, sauvegarde dans Supabase...');
+        
         // Enregistrement de l'upload dans Supabase
-        const { error: uploadError } = await supabase.from('uploads').insert({
+        const { data: uploadData, error: uploadError } = await supabase.from('uploads').insert({
           user_id: session.user.id,
-          request_id: data.requestId,
+          n8n_request_id: data.requestId,
           filename: file.name,
-          filesize: file.size,
-          file_type: file.type,
-          upload_status: 'completed',
-          n8n_response: data
-        });
+          size_bytes: file.size,
+          mime_type: file.type,
+          status: 'ocr_done'
+        }).select();
         
         if (uploadError) {
-          console.warn('Erreur sauvegarde upload:', uploadError);
+          console.warn('⚠️ Erreur sauvegarde upload:', uploadError);
           // Continue malgré l'erreur de sauvegarde
+        } else {
+          console.log('✅ Upload sauvegardé:', uploadData);
+          
+          // Sauvegarder aussi les résultats OCR si présents
+          if (data.data && uploadData?.[0]?.id) {
+            const { data: ocrData, error: ocrError } = await supabase.from('ocr_results').insert({
+              upload_id: uploadData[0].id,
+              data: data.data
+            }).select();
+            
+            if (ocrError) {
+              console.warn('⚠️ Erreur sauvegarde OCR:', ocrError);
+            } else {
+              console.log('✅ OCR sauvegardé:', ocrData);
+            }
+          }
         }
         
         // Stocker les données extraites pour la page de validation
