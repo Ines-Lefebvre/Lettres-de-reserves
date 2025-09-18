@@ -4,7 +4,7 @@ import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { Upload as UploadIcon, FileText } from 'lucide-react';
+import { Upload as UploadIcon, FileText, AlertCircle } from 'lucide-react';
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,101 +21,78 @@ export default function UploadPage() {
       return;
     }
     
-    setMsg(null);
-    setLoading(true);
-    
-    // Récupération du token utilisateur pour l'authentification
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setMsg('Session expirée, veuillez vous reconnecter');
-      nav('/login');
+    // Contrôle taille fichier ≤ 40 MB
+    if (file.size > 40 * 1024 * 1024) {
+      setMsg('Le fichier ne doit pas dépasser 40 MB');
       return;
     }
     
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('filename', file.name);
-    fd.append('filesize', file.size.toString());
-    fd.append('requestId', crypto.randomUUID());
-    fd.append('timestamp', new Date().toISOString());
-    fd.append('token', `jwt_${session.access_token.substring(0, 20)}`); // Token simplifié pour N8N
+    setMsg(null);
+    setLoading(true);
     
     try {
       console.log('🚀 Envoi vers N8N:', N8N_UPLOAD_URL);
       console.log('📁 Fichier:', { name: file.name, size: file.size, type: file.type });
       
+      const fd = new FormData();
+      fd.append('file', file);
+      
       const res = await fetch(N8N_UPLOAD_URL, {
-        method: 'POST', 
-        body: fd, 
-        headers: {
-          'Accept': 'application/json',
-          // ne pas fixer 'Content-Type' quand on envoie FormData
-        },
+        method: 'POST',
         mode: 'cors',
-        credentials: 'omit'
+        credentials: 'omit',
+        headers: { 
+          'Accept': 'application/json'
+          // Ne pas fixer Content-Type avec FormData
+        },
+        body: fd,
       });
       
       if (!res.ok) {
-        throw new Error(`Erreur HTTP ${res.status}`);
+        throw new Error(`Upload échoué (${res.status})`);
       }
       
       const data = await res.json();
-      
       console.log('📡 Réponse N8N:', data);
       
-      // Vérification de la réponse N8N : {ok, requestId, next, data?}
-      if (data?.ok && data?.next) {
-        console.log('✅ N8N OK, sauvegarde dans Supabase...');
-        
-        // Enregistrement de l'upload dans Supabase
-        const { data: uploadData, error: uploadError } = await supabase.from('uploads').insert({
-          user_id: session.user.id,
-          n8n_request_id: data.requestId,
-          filename: file.name,
-          size_bytes: file.size,
-          mime_type: file.type,
-          status: 'ocr_done'
-        }).select();
-        
-        if (uploadError) {
-          console.warn('⚠️ Erreur sauvegarde upload:', uploadError);
-          // Continue malgré l'erreur de sauvegarde
-        } else {
-          console.log('✅ Upload sauvegardé:', uploadData);
-          
-          // Sauvegarder aussi les résultats OCR si présents
-          if (data.data && uploadData?.[0]?.id) {
-            const { data: ocrData, error: ocrError } = await supabase.from('ocr_results').insert({
-              upload_id: uploadData[0].id,
-              data: data.data
-            }).select();
-            
-            if (ocrError) {
-              console.warn('⚠️ Erreur sauvegarde OCR:', ocrError);
-            } else {
-              console.log('✅ OCR sauvegardé:', ocrData);
-            }
-          }
-        }
-        
-        // Stocker les données extraites pour la page de validation
-        if (data.data) {
-          sessionStorage.setItem('extracted_data', JSON.stringify(data.data));
-        }
-        if (data.requestId) {
-          sessionStorage.setItem('request_id', data.requestId);
-        }
-        
-        // Redirection vers /validation
-        nav(data.next);
-      } else {
-        setMsg(data?.message || 'Réponse inattendue du serveur');
+      if (!data.ok) {
+        throw new Error('Réponse OCR invalide');
       }
-    } catch (e: any) {
-      setMsg(e?.message ?? 'Erreur de connexion au serveur');
+      
+      // Stockage en sessionStorage
+      sessionStorage.setItem('requestId', data.requestId || '');
+      sessionStorage.setItem('sessionId', data.payload?.sessionId || '');
+      sessionStorage.setItem('ocr_payload', JSON.stringify(data.payload || {}));
+      
+      console.log('✅ Données stockées en sessionStorage:', {
+        requestId: data.requestId,
+        sessionId: data.payload?.sessionId,
+        hasPayload: !!data.payload
+      });
+      
+      // Redirection vers next (fourni par n8n)
+      if (data.next) {
+        console.log('🔄 Redirection vers:', data.next);
+        window.location.href = data.next;
+      } else {
+        // Fallback si pas de next
+        nav('/validation');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Erreur upload:', error);
+      setMsg(error?.message || 'Erreur de connexion au serveur');
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -144,7 +121,11 @@ export default function UploadPage() {
                   <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
                     Sélectionner un fichier PDF
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand-accent transition-colors duration-300">
+                  <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors duration-300 ${
+                    file && file.size > 40 * 1024 * 1024 
+                      ? 'border-red-300 bg-red-50' 
+                      : 'border-gray-300 hover:border-brand-accent'
+                  }`}>
                     <input
                       id="file-upload"
                       type="file"
@@ -156,14 +137,26 @@ export default function UploadPage() {
                       htmlFor="file-upload"
                       className="cursor-pointer flex flex-col items-center"
                     >
-                      <FileText className="w-12 h-12 text-gray-400 mb-2" />
+                      <FileText className={`w-12 h-12 mb-2 ${
+                        file && file.size > 40 * 1024 * 1024 ? 'text-red-400' : 'text-gray-400'
+                      }`} />
                       <span className="text-sm text-gray-600">
                         {file ? file.name : 'Cliquez pour sélectionner un fichier PDF'}
                       </span>
                       {file && (
-                        <span className="text-xs text-gray-500 mt-1">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </span>
+                        <div className="mt-2 space-y-1">
+                          <span className={`text-xs ${
+                            file.size > 40 * 1024 * 1024 ? 'text-red-600 font-semibold' : 'text-gray-500'
+                          }`}>
+                            {formatFileSize(file.size)}
+                          </span>
+                          {file.size > 40 * 1024 * 1024 && (
+                            <div className="flex items-center justify-center gap-1 text-red-600">
+                              <AlertCircle className="w-4 h-4" />
+                              <span className="text-xs">Fichier trop volumineux</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </label>
                   </div>
@@ -172,13 +165,13 @@ export default function UploadPage() {
                 {/* Upload Button */}
                 <button
                   onClick={onSend}
-                  disabled={loading || !file}
+                  disabled={loading || !file || (file && file.size > 40 * 1024 * 1024)}
                   className="w-full bg-brand-accent hover:bg-opacity-90 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Envoi en cours...
+                      Analyse en cours...
                     </>
                   ) : (
                     <>
@@ -190,7 +183,8 @@ export default function UploadPage() {
                 
                 {/* Message */}
                 {msg && (
-                  <div className="p-3 rounded-md text-sm bg-red-50 text-red-700 border border-red-200">
+                  <div className="p-3 rounded-md text-sm bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     {msg}
                   </div>
                 )}
@@ -200,8 +194,8 @@ export default function UploadPage() {
                   <h3 className="font-semibold text-brand-text-dark mb-2">Informations importantes :</h3>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• Seuls les fichiers PDF sont acceptés</li>
-                    <li>• Taille maximum : 15 MB</li>
-                    <li>• Le document sera analysé automatiquement</li>
+                    <li>• Taille maximum : <strong>40 MB</strong></li>
+                    <li>• Le document sera analysé automatiquement par OCR</li>
                     <li>• Vous pourrez valider les données extraites à l'étape suivante</li>
                   </ul>
                 </div>
