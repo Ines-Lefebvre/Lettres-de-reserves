@@ -44,7 +44,19 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ $json.headers['Access-Control-Allow-Origin'] }}"
+                "value": "https://landing-page-convers-h8da.bolt.host"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization, X-Requested-With"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "600"
               },
               {
                 "name": "Content-Type",
