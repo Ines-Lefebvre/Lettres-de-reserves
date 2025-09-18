@@ -21,9 +21,17 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setMsg(null);
+    
+    // Vérifier la configuration Supabase
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      setMsg('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
+      setLoading(false);
+      return;
+    }
+    
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setMsg(error.message);
+      setMsg(`Erreur de connexion: ${error.message}`);
       setLoading(false);
       return;
     }
@@ -34,9 +42,17 @@ export default function LoginPage() {
   const signUp = async () => {
     setLoading(true);
     setMsg(null);
+    
+    // Vérifier la configuration Supabase
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      setMsg('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
+      setLoading(false);
+      return;
+    }
+    
     const { error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      setMsg(error.message);
+      setMsg(`Erreur de création de compte: ${error.message}`);
     } else {
       setMsg('Compte créé. Connectez-vous.');
     }
