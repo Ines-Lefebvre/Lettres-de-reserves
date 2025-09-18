@@ -1,87 +1,145 @@
-import { useState, FormEvent, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
+export default function Login() {
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const nav = useNavigate();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const navigate = useNavigate();
 
+  // Vérifier si déjà connecté
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) nav('/upload');
-    });
-  }, [nav]);
-
-  const signIn = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setMsg(null);
-    
-    // Vérifier la configuration Supabase
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      setMsg('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
-      setLoading(false);
-      return;
-    }
-    
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setMsg(`Erreur de connexion: ${error.message}`);
-      setLoading(false);
-      return;
-    }
-    // Redirection vers /upload après connexion réussie
-    nav('/upload');
-  };
-
-  const signUp = async () => {
-    setLoading(true);
-    setMsg(null);
-    
-    // Vérifier la configuration Supabase
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      setMsg('Configuration Supabase manquante. Veuillez configurer les variables d\'environnement.');
-      setLoading(false);
-      return;
-    }
-    
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      setMsg(`Erreur de création de compte: ${error.message}`);
-      setLoading(false);
-      return;
-    }
-    
-    // Auto-création du profil après inscription réussie
-    if (data.user) {
-      console.log('✅ Compte créé, création du profil...', { userId: data.user.id, email });
-      
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: data.user.id,
-          email: email
-        }, {
-          onConflict: 'id'
-        });
-        
-      if (profileError) {
-        console.warn('⚠️ Erreur création profil:', profileError);
-        setMsg(`Compte créé mais erreur profil: ${profileError.message}`);
-      } else {
-        console.log('✅ Profil créé avec succès');
-        setMsg('Compte et profil créés avec succès. Connectez-vous.');
+      if (data.session) {
+        navigate('/upload');
       }
-    } else {
-      setMsg('Compte créé. Connectez-vous.');
+    });
+  }, [navigate]);
+
+  function resetAlerts() {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setNeedsEmailConfirmation(false);
+  }
+
+  function getCredentials() {
+    const email = emailRef.current?.value.trim() || '';
+    const password = passwordRef.current?.value || '';
+    return { email, password };
+  }
+
+  function validateInputs(email: string, password: string) {
+    if (!email || !password) {
+      throw new Error('Veuillez saisir un email et un mot de passe.');
     }
-    setLoading(false);
-  };
+    if (password.length < 6) {
+      throw new Error('Le mot de passe doit contenir au moins 6 caractères.');
+    }
+  }
+
+  // Mapping d'erreurs Supabase -> messages FR lisibles
+  function mapSupabaseErrorMessage(message: string) {
+    const msg = message?.toLowerCase() || '';
+
+    if (msg.includes('email not confirmed')) {
+      setNeedsEmailConfirmation(true);
+      return 'Email non confirmé. Vérifiez votre boîte mail puis réessayez.';
+    }
+    if (msg.includes('invalid login credentials')) {
+      return 'Identifiants invalides. Vérifiez votre email et votre mot de passe.';
+    }
+    if (msg.includes('anonymous sign-ins are disabled')) {
+      return 'Veuillez renseigner un email et un mot de passe.';
+    }
+    if (msg.includes('user already registered')) {
+      return 'Un compte existe déjà avec cet email.';
+    }
+    return message || 'Une erreur inattendue est survenue.';
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    resetAlerts();
+    const { email, password } = getCredentials();
+
+    try {
+      validateInputs(email, password);
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setErrorMsg(mapSupabaseErrorMessage(error.message));
+        return;
+      }
+
+      // Succès
+      navigate('/upload');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erreur de validation du formulaire.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    resetAlerts();
+    const { email, password } = getCredentials();
+
+    try {
+      validateInputs(email, password);
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        // Si confirmation email activée côté Supabase (recommandé en prod) :
+        options: { emailRedirectTo: `${import.meta.env.VITE_SITE_URL}/login` },
+      });
+
+      if (error) {
+        setErrorMsg(mapSupabaseErrorMessage(error.message));
+        return;
+      }
+
+      // Si confirmation requise, informer l'utilisateur
+      setInfoMsg('Compte créé. Vérifiez votre email pour confirmer votre adresse, puis connectez-vous.');
+      setNeedsEmailConfirmation(true);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Erreur de validation du formulaire.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendConfirmation() {
+    resetAlerts();
+    const email = emailRef.current?.value.trim() || '';
+    if (!email) {
+      setErrorMsg('Saisissez votre email pour renvoyer le lien de confirmation.');
+      return;
+    }
+    try {
+      setLoading(true);
+      // Supabase JS v2 — renvoi de l'email de confirmation
+      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      if (error) {
+        setErrorMsg(mapSupabaseErrorMessage(error.message));
+        return;
+      }
+      setInfoMsg('Email de confirmation renvoyé. Vérifiez votre boîte mail.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Impossible de renvoyer l\'email pour le moment.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-brand-white">
@@ -94,16 +152,15 @@ export default function LoginPage() {
               Connexion
             </h1>
             
-            <form onSubmit={signIn} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email
                 </label>
                 <input
+                  ref={emailRef}
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
                   placeholder="votre@email.com"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
@@ -115,10 +172,9 @@ export default function LoginPage() {
                   Mot de passe
                 </label>
                 <input
+                  ref={passwordRef}
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
@@ -130,27 +186,43 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full bg-brand-accent hover:bg-opacity-90 text-white py-2 px-4 rounded-md font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Connexion...' : 'Se connecter'}
+                {loading ? 'Connexion…' : 'Se connecter'}
               </button>
             </form>
             
             <div className="mt-6 text-center">
               <button
-                onClick={signUp}
+                type="button"
+                onClick={handleSignup}
                 disabled={loading}
                 className="text-brand-accent hover:text-brand-dark font-medium transition-colors duration-300 disabled:opacity-50"
               >
                 Créer un compte
               </button>
             </div>
+
+            {needsEmailConfirmation && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={loading}
+                  className="text-sm text-gray-600 hover:text-brand-accent font-medium transition-colors duration-300 disabled:opacity-50"
+                >
+                  Renvoyer l'email de confirmation
+                </button>
+              </div>
+            )}
             
-            {msg && (
-              <div className={`mt-4 p-3 rounded-md text-sm ${
-                msg.includes('Compte créé') 
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                {msg}
+            {errorMsg && (
+              <div className="mt-4 p-3 rounded-md text-sm bg-red-50 text-red-700 border border-red-200">
+                <strong>Erreur :</strong> {errorMsg}
+              </div>
+            )}
+
+            {infoMsg && (
+              <div className="mt-4 p-3 rounded-md text-sm bg-blue-50 text-blue-700 border border-blue-200">
+                {infoMsg}
               </div>
             )}
           </div>
