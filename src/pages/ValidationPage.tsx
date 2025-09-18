@@ -38,67 +38,65 @@ export default function ValidationPage() {
       return; 
     }
     
+    console.log('💾 Sauvegarde validation...', { requestId: rid, userId: session.user.id });
+    
     try {
       // Recherche de l'upload correspondant
-      const { data: upload } = await supabase
+      const { data: upload, error: uploadFindError } = await supabase
         .from('uploads')
         .select('id')
-        .eq('request_id', rid)
+        .eq('n8n_request_id', rid)
         .eq('user_id', session.user.id)
         .single();
       
-      // Insertion dans ocr_results si pas déjà fait
-      let ocrResultId = null;
-      if (upload) {
-        const { data: existingOcr } = await supabase
-          .from('ocr_results')
-          .select('id')
-          .eq('upload_id', upload.id)
-          .single();
-          
-        if (existingOcr) {
-          ocrResultId = existingOcr.id;
-        } else {
-          const { data: newOcr, error: ocrError } = await supabase
-            .from('ocr_results')
-            .insert({
-              upload_id: upload.id,
-              user_id: session.user.id,
-              document_type: payload.documentType || 'AT_NORMALE',
-              extracted_fields: payload.extractedFields || {},
-              ocr_confidence: payload.ocrConfidence || 0.0,
-              validation_fields: payload.validationFields || {},
-              contextual_questions: payload.contextualQuestions || []
-            })
-            .select('id')
-            .single();
-            
-          if (ocrError) throw ocrError;
-          ocrResultId = newOcr.id;
-        }
+      if (uploadFindError) {
+        console.warn('⚠️ Upload non trouvé:', uploadFindError);
+      } else {
+        console.log('✅ Upload trouvé:', upload);
       }
       
       // Insertion dans validations
-      const { error: validationError } = await supabase.from('validations').insert({
-        ocr_result_id: ocrResultId,
+      const { data: validationData, error: validationError } = await supabase.from('validations').insert({
+        upload_id: upload?.id || null,
         user_id: session.user.id,
-        validated_fields: payload,
-        validation_status: 'validated',
-        validated_at: new Date().toISOString()
-      });
+        data: payload,
+        is_confirmed: true,
+        confirmed_at: new Date().toISOString()
+      }).select();
       
-      if (validationError) throw validationError;
+      if (validationError) {
+        console.error('❌ Erreur validation:', validationError);
+        throw validationError;
+      }
+      
+      console.log('✅ Validation sauvegardée:', validationData);
+      
+      // Mise à jour du statut de l'upload
+      if (upload) {
+        const { error: updateError } = await supabase
+          .from('uploads')
+          .update({ status: 'validated' })
+          .eq('id', upload.id);
+          
+        if (updateError) {
+          console.warn('⚠️ Erreur mise à jour statut:', updateError);
+        } else {
+          console.log('✅ Statut upload mis à jour: validated');
+        }
+      }
       
       // Insertion legacy dans dossiers pour compatibilité
-      const { error: dossierError } = await supabase.from('dossiers').insert({
-        request_id: rid || null,
+      const { data: dossierData, error: dossierError } = await supabase.from('dossiers').insert({
+        request_id: rid,
         user_id: session.user.id,
         payload
-      });
+      }).select();
       
       if (dossierError) {
-        console.warn('Erreur sauvegarde dossier legacy:', dossierError);
+        console.warn('⚠️ Erreur sauvegarde dossier legacy:', dossierError);
         // Continue malgré l'erreur legacy
+      } else {
+        console.log('✅ Dossier legacy sauvegardé:', dossierData);
       }
       
       // Nettoyage du sessionStorage après sauvegarde réussie

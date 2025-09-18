@@ -50,9 +50,33 @@ export default function LoginPage() {
       return;
     }
     
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setMsg(`Erreur de création de compte: ${error.message}`);
+      setLoading(false);
+      return;
+    }
+    
+    // Auto-création du profil après inscription réussie
+    if (data.user) {
+      console.log('✅ Compte créé, création du profil...', { userId: data.user.id, email });
+      
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          email: email
+        }, {
+          onConflict: 'id'
+        });
+        
+      if (profileError) {
+        console.warn('⚠️ Erreur création profil:', profileError);
+        setMsg(`Compte créé mais erreur profil: ${profileError.message}`);
+      } else {
+        console.log('✅ Profil créé avec succès');
+        setMsg('Compte et profil créés avec succès. Connectez-vous.');
+      }
     } else {
       setMsg('Compte créé. Connectez-vous.');
     }
