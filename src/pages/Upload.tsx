@@ -13,7 +13,7 @@ export default function UploadPage() {
   const nav = useNavigate();
   
   // URL du webhook N8N pour l'upload
-  const url = import.meta.env.VITE_N8N_UPLOAD_URL as string;
+  const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL;
 
   const onSend = async () => {
     if (!file) {
@@ -41,14 +41,15 @@ export default function UploadPage() {
     fd.append('token', `jwt_${session.access_token.substring(0, 20)}`); // Token simplifié pour N8N
     
     try {
-      const res = await fetch(url, {
+      const res = await fetch(N8N_UPLOAD_URL, {
         method: 'POST', 
         body: fd, 
-        mode: 'cors',
         headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json'
-        }
+          'Accept': 'application/json',
+          // ne pas fixer 'Content-Type' quand on envoie FormData
+        },
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       if (!res.ok) {
