@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
+import { getOcrResultIdOrThrow } from '../utils/getOcrResultId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload } from 'lucide-react';
@@ -166,6 +167,18 @@ export default function ValidationPage() {
       // 2) Contexte
       const requestId = sessionStorage.getItem('requestId') || null;
       const sessionId = sessionStorage.getItem('sessionId') || null;
+      
+      // 3) Récupérer ocr_result_id
+      let ocrResultId = null;
+      if (requestId) {
+        try {
+          ocrResultId = await getOcrResultIdOrThrow(requestId);
+          console.log('✅ ocr_result_id récupéré:', ocrResultId);
+        } catch (e) {
+          console.warn('⚠️ Impossible de récupérer ocr_result_id:', e);
+          // Continuer sans ocr_result_id (null)
+        }
+      }
 
       const payloadRaw = sessionStorage.getItem('ocr_payload');
       if (!payloadRaw) {
@@ -177,32 +190,33 @@ export default function ValidationPage() {
       const completionStats = payload?.completionStats || {};
       const ocrSource = 'mistral_ocr';
 
-      // 3) Normaliser les champs validés ("section.champ" -> objet imbriqué)
+      // 4) Normaliser les champs validés ("section.champ" -> objet imbriqué)
       const normalized = dotObjectToNested(validatedData);
 
       console.log('💾 Sauvegarde validation Supabase:', {
         userId,
         requestId,
         sessionId,
+        ocrResultId,
         documentType,
         normalizedDataKeys: Object.keys(normalized),
         answersCount: (answers || []).length,
         ocrSource
       });
 
-      // 4) (Optionnel) Upsert profil à la première validation
+      // 5) (Optionnel) Upsert profil à la première validation
       // AVANT (commenter pour l'instant) :
       // await supabase.from('profiles').upsert({
       //   user_id: userId,
       //   email: session.user.email
       // }, { onConflict: 'user_id' });
 
-      // 5) Insert propre dans validations
+      // 6) Insert propre dans validations (SANS .select(), SANS retour)
       const { error } = await supabase
         .from('validations')
         .insert([{
           user_id: userId,
-          ocr_result_id: null, // Pas d'OCR result séparé dans ce flow
+          ocr_result_id: ocrResultId, // ID de l'OCR result récupéré
           request_id: requestId,
           session_id: sessionId,
           document_type: documentType,
@@ -222,7 +236,7 @@ export default function ValidationPage() {
       console.info('Insert validations envoyé sans select()');
       console.log('✅ Validation sauvegardée avec succès');
 
-      // 6) Succès → feedback + suite
+      // 7) Succès → feedback + suite
       setSuccess(true);
       setMsg('Données validées et sauvegardées avec succès !');
       
