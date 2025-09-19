@@ -199,14 +199,14 @@ export default function ValidationPage() {
 
       // 4) Insérer la validation (la RPC résout elle-même ocr_result_id)
       const { error: validationError } = await supabase.rpc('rpc_insert_validation', {
-        request_id: finalRequestId,
-        validated_fields: normalized,
-        answers: answers || [],
-        contextual_answers: {},              // remplace si tu as des données
-        completion_stats: completionStats,
-        document_type: documentType,
-        session_id: sessionId,
-        source: 'mistral_ocr'
+        p_request_id: finalRequestId,
+        p_validated_fields: normalized,
+        p_answers: answers || [],
+        p_contextual_answers: {},              // remplace si tu as des données
+        p_completion_stats: completionStats,
+        p_document_type: documentType,
+        p_session_id: sessionId,
+        p_source: 'mistral_ocr'
       });
       
       if (validationError) {
