@@ -163,7 +163,7 @@ export default function ValidationPage() {
       }
       const userId = session.user.id;
 
-      // 2) Récupérer contexte OCR & stats
+      // 2) Contexte
       const requestId = sessionStorage.getItem('requestId') || null;
       const sessionId = sessionStorage.getItem('sessionId') || null;
 
@@ -175,13 +175,10 @@ export default function ValidationPage() {
 
       const documentType = payload?.documentType || null;
       const completionStats = payload?.completionStats || {};
-      const source = 'mistral_ocr';
+      const ocrSource = 'mistral_ocr';
 
-      // 3) Normaliser les champs validés
+      // 3) Normaliser les champs validés ("section.champ" -> objet imbriqué)
       const normalized = dotObjectToNested(validatedData);
-
-      // 4) Préparer les réponses aux questions
-      const answersArray = Object.entries(answers).map(([id, value]) => ({ id, value }));
 
       console.log('💾 Sauvegarde validation Supabase:', {
         userId,
@@ -189,17 +186,17 @@ export default function ValidationPage() {
         sessionId,
         documentType,
         normalizedDataKeys: Object.keys(normalized),
-        answersCount: answersArray.length,
-        source
+        answersCount: (answers || []).length,
+        ocrSource
       });
 
-      // 5) (Optionnel) Upsert profil à la première validation
+      // 4) (Optionnel) Upsert profil à la première validation
       await supabase.from('profiles').upsert({
         user_id: userId,
         email: session.user.email
       }, { onConflict: 'user_id' });
 
-      // 6) Écrire dans Supabase (RLS: insert par propriétaire)
+      // 5) Insert dans les colonnes RÉELLES de ta table
       const { data, error } = await supabase
         .from('validations')
         .insert([{
@@ -207,12 +204,12 @@ export default function ValidationPage() {
           request_id: requestId,
           session_id: sessionId,
           document_type: documentType,
-          data: normalized,
-          answers: answersArray,
+          validated_fields: normalized,            // <-- pas "data"
+          contextual_answers: answers || [],       // <-- pas "answers" à plat
           completion_stats: completionStats,
-          source,
-          is_confirmed: true,
-          confirmed_at: new Date().toISOString()
+          ocr_source: ocrSource,                   // <-- pas "source"
+          validation_status: 'confirmed',
+          validated_at: new Date().toISOString()
         }])
         .select()
         .single();
@@ -223,7 +220,7 @@ export default function ValidationPage() {
 
       console.log('✅ Validation sauvegardée:', data);
 
-      // 7) Succès → feedback + suite
+      // 6) Succès → feedback + suite
       setSuccess(true);
       setMsg('Données validées et sauvegardées avec succès !');
       
@@ -238,9 +235,9 @@ export default function ValidationPage() {
         navigate('/response?status=success&message=Données validées avec succès');
       }, 2000);
 
-    } catch (error: any) {
-      console.error('❌ Erreur sauvegarde validation:', error);
-      setMsg(error?.message || 'Erreur inattendue lors de la sauvegarde.');
+    } catch (e: any) {
+      console.error('❌ Erreur sauvegarde validation:', e);
+      setMsg(e?.message || 'Erreur inattendue lors de la sauvegarde.');
     } finally {
       setSaving(false);
     }
