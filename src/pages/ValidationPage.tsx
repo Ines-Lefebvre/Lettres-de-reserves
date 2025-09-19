@@ -197,7 +197,7 @@ export default function ValidationPage() {
       }, { onConflict: 'user_id' });
 
       // 5) Insert propre dans validations
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('validations')
         .insert([{
           user_id: userId,
@@ -212,15 +212,13 @@ export default function ValidationPage() {
           completion_stats: completionStats,
           source: ocrSource,                       // Source OCR
           validated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+        }]);
 
       if (error) {
         throw new Error(error.message || 'Échec de l\'enregistrement.');
       }
 
-      console.log('✅ Validation sauvegardée:', data);
+      console.log('✅ Validation sauvegardée avec succès');
 
       // 6) Succès → feedback + suite
       setSuccess(true);
