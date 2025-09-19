@@ -16,20 +16,18 @@ export function newRequestId(): string {
 }
 
 /**
- * Récupère ou génère un requestId cohérent
- * Priorité: sessionStorage > génération nouvelle
+ * Récupère le requestId existant UNIQUEMENT
+ * AUCUNE GÉNÉRATION - Utiliser newRequestId() explicitement si besoin
  * 
- * @returns RequestId cohérent
+ * @returns RequestId existant ou null
  */
-export function getOrCreateRequestId(): string {
-  let requestId = sessionStorage.getItem('current_request_id');
-  if (!requestId) {
-    requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    sessionStorage.setItem('current_request_id', requestId);
-    console.log('🆕 Nouveau requestId créé et persisté:', requestId);
-  } else {
-    console.log('♻️ RequestId existant récupéré:', requestId);
-  }
+export function getOrCreateRequestId(): string | null {
+  const requestId = sessionStorage.getItem('current_request_id');
+  console.log('REQUEST_ID DEBUGGING:', {
+    source: 'getOrCreateRequestId',
+    requestId: requestId,
+    timestamp: Date.now()
+  });
   return requestId;
 }
 

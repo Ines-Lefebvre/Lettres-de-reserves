@@ -32,21 +32,22 @@ export default function UploadPage() {
     setLoading(true);
     
     try {
-      // 🔧 CORRECTION: Utiliser un requestId cohérent
+      // 🔧 SEUL ENDROIT DE GÉNÉRATION DE REQUEST_ID
       let requestId = sessionStorage.getItem('current_request_id');
       if (!requestId) {
         requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         sessionStorage.setItem('current_request_id', requestId);
-        console.log('🆕 Nouveau request_id généré:', requestId);
+        console.log('🆕 NOUVEAU REQUEST_ID GÉNÉRÉ (UPLOAD):', requestId);
       } else {
-        console.log('♻️ Request_id existant réutilisé:', requestId);
+        console.log('♻️ REQUEST_ID EXISTANT RÉUTILISÉ (UPLOAD):', requestId);
       }
       
-      // Persister immédiatement le requestId
-      sessionStorage.setItem('current_request_id', requestId);
-      sessionStorage.setItem('ocr_started_at', new Date().toISOString());
+      console.log('REQUEST_ID DEBUGGING:', {
+        source: 'upload',
+        requestId: requestId,
+        timestamp: Date.now()
+      });
       
-      console.log('📝 Request ID utilisé pour upload:', requestId);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
