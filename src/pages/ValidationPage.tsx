@@ -62,27 +62,18 @@ export default function ValidationPage() {
     // Récupération des données depuis URL et sessionStorage
     const rid = searchParams.get('rid') || '';
     
-    // 🔧 CORRECTION: Utiliser le request_id cohérent
-    let finalRequestId = sessionStorage.getItem('current_request_id') || '';
-    if (!finalRequestId) {
-      finalRequestId = rid || 'error_no_request_id';
-      if (finalRequestId !== 'error_no_request_id') {
-        sessionStorage.setItem('current_request_id', finalRequestId);
-      }
-    }
+    // 🔧 AUCUNE GÉNÉRATION - RÉCUPÉRATION UNIQUEMENT
+    const finalRequestId = sessionStorage.getItem('current_request_id') || rid || 'error_no_request_id';
     
-    console.log('📝 Request ID utilisé pour validation:', finalRequestId);
+    console.log('REQUEST_ID DEBUGGING:', {
+      source: 'validation_load',
+      requestId: finalRequestId,
+      ridFromUrl: rid,
+      timestamp: Date.now()
+    });
     
     const storedSessionId = sessionStorage.getItem('sessionId') || '';
     const storedPayload = sessionStorage.getItem('ocr_payload');
-    
-    console.log('🔍 Chargement validation:', {
-      ridFromUrl: rid,
-      currentRequestIdFromStorage: finalRequestId,
-      sessionIdFromStorage: storedSessionId,
-      hasStoredPayload: !!storedPayload,
-      finalRequestIdUsed: finalRequestId
-    });
     
     setRequestId(finalRequestId);
     setSessionId(storedSessionId);
@@ -91,18 +82,15 @@ export default function ValidationPage() {
       try {
         const payload = JSON.parse(storedPayload);
         
-        // 🔧 CORRECTION: FORCER la cohérence du requestId dans le payload
+        // 🔧 VÉRIFICATION COHÉRENCE (PAS DE GÉNÉRATION)
         if (payload.requestId && payload.requestId !== finalRequestId) {
-          console.warn('⚠️ RequestId incohérent dans payload:', {
+          console.warn('⚠️ REQUEST_ID INCOHÉRENT DANS PAYLOAD:', {
             payloadRequestId: payload.requestId,
             finalRequestId: finalRequestId
           });
-          // FORCER la correction du payload
           payload.requestId = finalRequestId;
           sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
-          console.log('🔧 Payload corrigé avec requestId cohérent:', finalRequestId);
-        } else {
-          console.log('✅ RequestId cohérent dans payload:', finalRequestId);
+          console.log('🔧 PAYLOAD CORRIGÉ AVEC REQUEST_ID:', finalRequestId);
         }
         
         setOcrPayload(payload);
@@ -188,34 +176,23 @@ export default function ValidationPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
 
-      // 2) Récupération contexte
-      const storedRequestId = sessionStorage.getItem('current_request_id') || '';
+      // 2) RÉCUPÉRATION REQUEST_ID (AUCUNE GÉNÉRATION)
+      const finalRequestId = sessionStorage.getItem('current_request_id') || '';
       const sessionId = sessionStorage.getItem('sessionId') || '';
-      if (!storedRequestId || storedRequestId === 'error_no_request_id') {
+      
+      if (!finalRequestId || finalRequestId === 'error_no_request_id') {
         throw new Error('Request ID introuvable ou invalide.');
       }
       
-      // 🔧 CORRECTION: Utiliser le request_id cohérent
-      const finalRequestId = requestId || storedRequestId;
-      if (!finalRequestId || finalRequestId === 'error_no_request_id') {
-        throw new Error('Aucun request_id valide disponible.');
-      }
-      
-      console.log('📝 Request ID utilisé pour validation finale:', finalRequestId);
+      console.log('REQUEST_ID DEBUGGING:', {
+        source: 'validation_save',
+        requestId: finalRequestId,
+        timestamp: Date.now()
+      });
 
       const payload = JSON.parse(sessionStorage.getItem('ocr_payload') || '{}');
       const documentType = payload?.documentType ?? null;
       const completionStats = payload?.completionStats ?? {};
-
-      console.log('💾 Sauvegarde validation Supabase:', {
-        userId: session.user.id,
-        requestId: finalRequestId,
-        sessionId,
-        documentType,
-        validatedFieldsKeys: Object.keys(validatedData),
-        answersCount: (answers || []).length,
-        source: 'mistral_ocr'
-      });
 
       // 3) Normalisation des données
       const normalized = dotObjectToNested(validatedData);
