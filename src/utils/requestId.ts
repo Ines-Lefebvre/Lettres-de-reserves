@@ -22,10 +22,10 @@ export function newRequestId(): string {
  * @returns RequestId cohérent
  */
 export function getOrCreateRequestId(): string {
-  let requestId = sessionStorage.getItem('requestId');
+  let requestId = sessionStorage.getItem('current_request_id');
   if (!requestId) {
-    requestId = newRequestId();
-    sessionStorage.setItem('requestId', requestId);
+    requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('current_request_id', requestId);
     console.log('🆕 Nouveau requestId créé et persisté:', requestId);
   } else {
     console.log('♻️ RequestId existant récupéré:', requestId);
@@ -39,8 +39,25 @@ export function getOrCreateRequestId(): string {
  * @param requestId - Le requestId à persister
  */
 export function setRequestId(requestId: string): void {
-  sessionStorage.setItem('requestId', requestId);
+  sessionStorage.setItem('current_request_id', requestId);
   console.log('💾 RequestId mis à jour:', requestId);
+}
+
+/**
+ * Récupère le requestId actuel depuis sessionStorage
+ * 
+ * @returns RequestId actuel ou null
+ */
+export function getCurrentRequestId(): string | null {
+  return sessionStorage.getItem('current_request_id');
+}
+
+/**
+ * Nettoie le requestId du sessionStorage
+ */
+export function clearRequestId(): void {
+  sessionStorage.removeItem('current_request_id');
+  console.log('🧹 RequestId nettoyé du sessionStorage');
 }
 
 /**
