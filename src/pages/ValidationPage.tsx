@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
-import { getOcrResultIdOrThrow } from '../utils/getOcrResultId';
+import { getOcrResultIdFromRequestId } from '../utils/getOcrResultId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload } from 'lucide-react';
@@ -157,88 +157,67 @@ export default function ValidationPage() {
       setMsg(null);
       setSuccess(false);
 
-      // 1) Session & user
+      // 1) session
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        throw new Error('Session expirée. Veuillez vous reconnecter.');
-      }
+      if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
       const userId = session.user.id;
 
-      // 2) Contexte
-      const requestId = sessionStorage.getItem('requestId') || null;
-      const sessionId = sessionStorage.getItem('sessionId') || null;
+      // 2) contexte
+      const requestId = sessionStorage.getItem('requestId') || '';
+      const sessionId = sessionStorage.getItem('sessionId') || '';
+      if (!requestId) throw new Error('requestId introuvable.');
       
-      // 3) Récupérer ocr_result_id
-      let ocrResultId = null;
-      if (requestId) {
-        try {
-          ocrResultId = await getOcrResultIdOrThrow(requestId);
-          console.log('✅ ocr_result_id récupéré:', ocrResultId);
-        } catch (e) {
-          console.warn('⚠️ Impossible de récupérer ocr_result_id:', e);
-          // Continuer sans ocr_result_id (null)
-        }
-      }
 
-      const payloadRaw = sessionStorage.getItem('ocr_payload');
-      if (!payloadRaw) {
-        throw new Error('Aucune donnée OCR en mémoire.');
-      }
-      const payload = JSON.parse(payloadRaw);
+      const payload = JSON.parse(sessionStorage.getItem('ocr_payload') || '{}');
+      const documentType = payload?.documentType ?? null;
+      const completionStats = payload?.completionStats ?? {};
+      const source = 'mistral_ocr';
 
-      const documentType = payload?.documentType || null;
-      const completionStats = payload?.completionStats || {};
-      const ocrSource = 'mistral_ocr';
+      // 3) ocr_result_id (FK NOT NULL)
+      const ocr_result_id = await getOcrResultIdFromRequestId(requestId);
 
-      // 4) Normaliser les champs validés ("section.champ" -> objet imbriqué)
-      const normalized = dotObjectToNested(validatedData);
+      // 4) normalisation
+      const validated_fields = dotObjectToNested(validatedData);
+
+      // 5) construire la ligne EXACTE selon ton schéma
+      const row: Record<string, any> = {
+        user_id: userId,
+        ocr_result_id,
+        validated_fields,                 // jsonb NOT NULL DEFAULT '{}'
+        user_corrections: {},             // optionnel
+        contextual_answers: {},           // optionnel
+        answers: answers || [],           // jsonb NOT NULL DEFAULT '[]'
+        validation_status: 'validated',   // enum: draft|validated|submitted
+        validated_at: new Date().toISOString(),
+        request_id: requestId,
+        session_id: sessionId || null,
+        document_type: documentType || null,
+        completion_stats: completionStats,
+        source
+      };
+      Object.keys(row).forEach(k => row[k] == null && delete row[k]);
 
       console.log('💾 Sauvegarde validation Supabase:', {
         userId,
         requestId,
         sessionId,
-        ocrResultId,
+        ocr_result_id,
         documentType,
-        normalizedDataKeys: Object.keys(normalized),
+        validatedFieldsKeys: Object.keys(validated_fields),
         answersCount: (answers || []).length,
-        ocrSource
+        source
       });
 
-      // 5) (Optionnel) Upsert profil à la première validation
-      // AVANT (commenter pour l'instant) :
-      // await supabase.from('profiles').upsert({
-      //   user_id: userId,
-      //   email: session.user.email
-      // }, { onConflict: 'user_id' });
-
-      // 6) Insert propre dans validations (SANS .select(), SANS retour)
-      const { error } = await supabase
+      // 6) insert SANS select, en 'minimal' (pas de ?columns=…)
+      const { error: err } = await supabase
         .from('validations')
-        .insert([{
-          user_id: userId,
-          ocr_result_id: ocrResultId, // ID de l'OCR result récupéré
-          request_id: requestId,
-          session_id: sessionId,
-          document_type: documentType,
-          validated_fields: normalized,            // <-- pas "data"
-          user_corrections: {},                    // Corrections utilisateur (vide pour l'instant)
-          contextual_answers: answers || {},       // Réponses aux questions contextuelles
-          validation_status: 'validated',          // Status: draft, validated, submitted
-          completion_stats: completionStats,
-          source: ocrSource,                       // Source OCR
-          validated_at: new Date().toISOString()
-        }]);
+        .insert(row, { returning: 'minimal' });
+      if (err) throw new Error(err.message);
 
-      if (error) {
-        throw new Error(error.message || 'Échec de l\'enregistrement.');
-      }
-
-      console.info('Insert validations envoyé sans select()');
-      console.log('✅ Validation sauvegardée avec succès');
-
-      // 7) Succès → feedback + suite
       setSuccess(true);
       setMsg('Données validées et sauvegardées avec succès !');
+      console.info('Insert validations envoyé sans select()');
+      console.log('✅ Validation sauvegardée avec succès');
       
       // Nettoyage du sessionStorage après sauvegarde réussie
       setTimeout(() => {
@@ -246,14 +225,12 @@ export default function ValidationPage() {
         sessionStorage.removeItem('sessionId');
         sessionStorage.removeItem('ocr_payload');
         
-        // Option: rediriger vers paiement ou page de succès
-        // navigate('/paiement?rid=' + requestId);
         navigate('/response?status=success&message=Données validées avec succès');
       }, 2000);
 
     } catch (e: any) {
       console.error('❌ Erreur sauvegarde validation:', e);
-      setMsg(e?.message || 'Erreur inattendue lors de la sauvegarde.');
+      setMsg(e?.message || 'Erreur inattendue.');
     } finally {
       setSaving(false);
     }
