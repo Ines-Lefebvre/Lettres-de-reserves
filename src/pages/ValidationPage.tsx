@@ -196,19 +196,21 @@ export default function ValidationPage() {
         email: session.user.email
       }, { onConflict: 'user_id' });
 
-      // 5) Insert dans les colonnes RÉELLES de ta table
+      // 5) Insert propre dans validations
       const { data, error } = await supabase
         .from('validations')
         .insert([{
           user_id: userId,
+          ocr_result_id: null, // Pas d'OCR result séparé dans ce flow
           request_id: requestId,
           session_id: sessionId,
           document_type: documentType,
           validated_fields: normalized,            // <-- pas "data"
-          contextual_answers: answers || [],       // <-- pas "answers" à plat
+          user_corrections: {},                    // Corrections utilisateur (vide pour l'instant)
+          contextual_answers: answers || {},       // Réponses aux questions contextuelles
+          validation_status: 'validated',          // Status: draft, validated, submitted
           completion_stats: completionStats,
-          ocr_source: ocrSource,                   // <-- pas "source"
-          validation_status: 'confirmed',
+          source: ocrSource,                       // Source OCR
           validated_at: new Date().toISOString()
         }])
         .select()
