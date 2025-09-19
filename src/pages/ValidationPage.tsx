@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
+import { supabase } from '../utils/supabaseClient';
+import { dotObjectToNested } from '../utils/normalize';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload } from 'lucide-react';
@@ -53,6 +55,7 @@ export default function ValidationPage() {
   const [validatedData, setValidatedData] = useState<Record<string, any>>({});
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -146,8 +149,105 @@ export default function ValidationPage() {
     }));
   };
 
-  // Soumission des données validées
-  const onValidate = async () => {
+  // Sauvegarde directe dans Supabase
+  const handleConfirm = async () => {
+    try {
+      setSaving(true);
+      setMsg(null);
+      setSuccess(false);
+
+      // 1) Session & user
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+      const userId = session.user.id;
+
+      // 2) Récupérer contexte OCR & stats
+      const requestId = sessionStorage.getItem('requestId') || null;
+      const sessionId = sessionStorage.getItem('sessionId') || null;
+
+      const payloadRaw = sessionStorage.getItem('ocr_payload');
+      if (!payloadRaw) {
+        throw new Error('Aucune donnée OCR en mémoire.');
+      }
+      const payload = JSON.parse(payloadRaw);
+
+      const documentType = payload?.documentType || null;
+      const completionStats = payload?.completionStats || {};
+      const source = 'mistral_ocr';
+
+      // 3) Normaliser les champs validés
+      const normalized = dotObjectToNested(validatedData);
+
+      // 4) Préparer les réponses aux questions
+      const answersArray = Object.entries(answers).map(([id, value]) => ({ id, value }));
+
+      console.log('💾 Sauvegarde validation Supabase:', {
+        userId,
+        requestId,
+        sessionId,
+        documentType,
+        normalizedDataKeys: Object.keys(normalized),
+        answersCount: answersArray.length,
+        source
+      });
+
+      // 5) (Optionnel) Upsert profil à la première validation
+      await supabase.from('profiles').upsert({
+        user_id: userId,
+        email: session.user.email
+      }, { onConflict: 'user_id' });
+
+      // 6) Écrire dans Supabase (RLS: insert par propriétaire)
+      const { data, error } = await supabase
+        .from('validations')
+        .insert([{
+          user_id: userId,
+          request_id: requestId,
+          session_id: sessionId,
+          document_type: documentType,
+          data: normalized,
+          answers: answersArray,
+          completion_stats: completionStats,
+          source,
+          is_confirmed: true,
+          confirmed_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(error.message || 'Échec de l\'enregistrement.');
+      }
+
+      console.log('✅ Validation sauvegardée:', data);
+
+      // 7) Succès → feedback + suite
+      setSuccess(true);
+      setMsg('Données validées et sauvegardées avec succès !');
+      
+      // Nettoyage du sessionStorage après sauvegarde réussie
+      setTimeout(() => {
+        sessionStorage.removeItem('requestId');
+        sessionStorage.removeItem('sessionId');
+        sessionStorage.removeItem('ocr_payload');
+        
+        // Option: rediriger vers paiement ou page de succès
+        // navigate('/paiement?rid=' + requestId);
+        navigate('/response?status=success&message=Données validées avec succès');
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('❌ Erreur sauvegarde validation:', error);
+      setMsg(error?.message || 'Erreur inattendue lors de la sauvegarde.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Ancien handler n8n (gardé en commentaire pour référence)
+  const onValidateN8N = async () => {
     setSaving(true);
     setMsg(null);
     
@@ -445,27 +545,50 @@ export default function ValidationPage() {
                 {/* Bouton de validation */}
                 <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6">
                   <button
-                    onClick={onValidate}
-                    disabled={saving}
-                    className="w-full bg-brand-accent hover:bg-opacity-90 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={handleConfirm}
+                    disabled={saving || success}
+                    className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                      success 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-brand-accent hover:bg-opacity-90 text-white'
+                    }`}
                   >
                     {saving ? (
                       <>
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Validation en cours...
+                        Enregistrement...
+                      </>
+                    ) : success ? (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Données validées !
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-5 h-5" />
+                        <Save className="w-5 h-5" />
                         Valider les données
                       </>
                     )}
                   </button>
                   
                   {msg && (
-                    <div className="mt-4 p-3 rounded-md text-sm bg-red-50 text-red-700 border border-red-200 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <div className={`mt-4 p-3 rounded-md text-sm border flex items-center gap-2 ${
+                      success 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                      {success ? (
+                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      )}
                       {msg}
+                    </div>
+                  )}
+                  
+                  {success && (
+                    <div className="mt-4 text-xs text-green-600 text-center">
+                      <p>Redirection automatique dans quelques secondes...</p>
                     </div>
                   )}
                   
