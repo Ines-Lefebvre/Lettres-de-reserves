@@ -32,8 +32,16 @@ export default function UploadPage() {
     setLoading(true);
     
     try {
-      // Génération du requestId et vérification session
-      const requestId = newRequestId();
+      // 🔧 CORRECTION: Récupérer ou générer un requestId unique
+      let requestId = sessionStorage.getItem('requestId');
+      if (!requestId) {
+        requestId = newRequestId();
+        console.log('🆕 Nouveau requestId généré:', requestId);
+      } else {
+        console.log('♻️ RequestId existant réutilisé:', requestId);
+      }
+      
+      // Persister immédiatement le requestId
       sessionStorage.setItem('requestId', requestId);
       sessionStorage.setItem('ocr_started_at', new Date().toISOString());
 
@@ -94,6 +102,18 @@ export default function UploadPage() {
       
       // Stockage en sessionStorage et traitement OCR
       const payload = data.payload || {};
+      
+      // 🔧 CORRECTION: Vérifier que N8N retourne le même requestId
+      const returnedRequestId = payload.requestId || data.requestId;
+      if (returnedRequestId && returnedRequestId !== requestId) {
+        console.warn('⚠️ RequestId différent retourné par N8N:', {
+          sent: requestId,
+          received: returnedRequestId
+        });
+        // Utiliser celui envoyé pour maintenir la cohérence
+        payload.requestId = requestId;
+      }
+      
       sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
       sessionStorage.setItem('sessionId', payload.sessionId || '');
       
