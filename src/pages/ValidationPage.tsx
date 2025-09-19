@@ -61,23 +61,44 @@ export default function ValidationPage() {
   useEffect(() => {
     // Récupération des données depuis URL et sessionStorage
     const rid = searchParams.get('rid') || '';
-    const storedRequestId = sessionStorage.getItem('requestId') || '';
+    
+    // 🔧 CORRECTION: Priorité au requestId stocké, puis URL
+    let finalRequestId = sessionStorage.getItem('requestId') || '';
+    if (!finalRequestId && rid) {
+      finalRequestId = rid;
+      // Persister pour cohérence
+      sessionStorage.setItem('requestId', rid);
+    }
+    
     const storedSessionId = sessionStorage.getItem('sessionId') || '';
     const storedPayload = sessionStorage.getItem('ocr_payload');
     
     console.log('🔍 Chargement validation:', {
       ridFromUrl: rid,
-      requestIdFromStorage: storedRequestId,
+      requestIdFromStorage: finalRequestId,
       sessionIdFromStorage: storedSessionId,
-      hasStoredPayload: !!storedPayload
+      hasStoredPayload: !!storedPayload,
+      finalRequestIdUsed: finalRequestId
     });
     
-    setRequestId(rid || storedRequestId);
+    setRequestId(finalRequestId);
     setSessionId(storedSessionId);
     
     if (storedPayload) {
       try {
         const payload = JSON.parse(storedPayload);
+        
+        // 🔧 CORRECTION: Vérifier cohérence du requestId dans le payload
+        if (payload.requestId && payload.requestId !== finalRequestId) {
+          console.warn('⚠️ RequestId incohérent dans payload:', {
+            payloadRequestId: payload.requestId,
+            finalRequestId: finalRequestId
+          });
+          // Corriger le payload
+          payload.requestId = finalRequestId;
+          sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
+        }
+        
         setOcrPayload(payload);
         
         // Extraction des données
@@ -103,7 +124,8 @@ export default function ValidationPage() {
           documentType: payload.documentType,
           hasExtractedData: !!payload.extractedData,
           validationFieldsCount: Object.keys(payload.validationFields || {}).length,
-          questionsCount: (payload.contextualQuestions || []).length
+          questionsCount: (payload.contextualQuestions || []).length,
+          requestIdInPayload: payload.requestId
         });
         
       } catch (error) {
@@ -161,20 +183,21 @@ export default function ValidationPage() {
       if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
 
       // 2) Récupération contexte
-      const requestId = sessionStorage.getItem('requestId') || '';
+      const storedRequestId = sessionStorage.getItem('requestId') || '';
       const sessionId = sessionStorage.getItem('sessionId') || '';
-      if (!requestId) throw new Error('requestId introuvable.');
+      if (!storedRequestId) throw new Error('requestId introuvable.');
+      
+      // 🔧 CORRECTION: Utiliser le requestId cohérent
+      const finalRequestId = requestId || storedRequestId;
+      if (!finalRequestId) throw new Error('Aucun requestId disponible.');
 
       const payload = JSON.parse(sessionStorage.getItem('ocr_payload') || '{}');
       const documentType = payload?.documentType ?? null;
       const completionStats = payload?.completionStats ?? {};
 
-
-
-
       console.log('💾 Sauvegarde validation Supabase:', {
         userId: session.user.id,
-        requestId,
+        requestId: finalRequestId,
         sessionId,
         documentType,
         validatedFieldsKeys: Object.keys(validatedData),
@@ -187,7 +210,7 @@ export default function ValidationPage() {
 
       // 4) Insérer la validation (la RPC résout elle-même ocr_result_id)
       const { error: validationError } = await supabase.rpc('rpc_insert_validation', {
-        request_id: requestId,
+        request_id: finalRequestId,
         validated_fields: normalized,
         answers: answers || [],
         contextual_answers: {},              // remplace si tu as des données

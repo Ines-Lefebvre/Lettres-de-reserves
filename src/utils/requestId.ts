@@ -16,6 +16,34 @@ export function newRequestId(): string {
 }
 
 /**
+ * Récupère ou génère un requestId cohérent
+ * Priorité: sessionStorage > génération nouvelle
+ * 
+ * @returns RequestId cohérent
+ */
+export function getOrCreateRequestId(): string {
+  let requestId = sessionStorage.getItem('requestId');
+  if (!requestId) {
+    requestId = newRequestId();
+    sessionStorage.setItem('requestId', requestId);
+    console.log('🆕 Nouveau requestId créé et persisté:', requestId);
+  } else {
+    console.log('♻️ RequestId existant récupéré:', requestId);
+  }
+  return requestId;
+}
+
+/**
+ * Force la mise à jour du requestId dans sessionStorage
+ * 
+ * @param requestId - Le requestId à persister
+ */
+export function setRequestId(requestId: string): void {
+  sessionStorage.setItem('requestId', requestId);
+  console.log('💾 RequestId mis à jour:', requestId);
+}
+
+/**
  * Génère un identifiant de session unique
  * Format: sess_timestamp_randomString
  * 
