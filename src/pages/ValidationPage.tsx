@@ -62,20 +62,23 @@ export default function ValidationPage() {
     // Récupération des données depuis URL et sessionStorage
     const rid = searchParams.get('rid') || '';
     
-    // 🔧 CORRECTION: Priorité au requestId stocké, puis URL
-    let finalRequestId = sessionStorage.getItem('requestId') || '';
-    if (!finalRequestId && rid) {
-      finalRequestId = rid;
-      // Persister pour cohérence
-      sessionStorage.setItem('requestId', rid);
+    // 🔧 CORRECTION: Utiliser le request_id cohérent
+    let finalRequestId = sessionStorage.getItem('current_request_id') || '';
+    if (!finalRequestId) {
+      finalRequestId = rid || 'error_no_request_id';
+      if (finalRequestId !== 'error_no_request_id') {
+        sessionStorage.setItem('current_request_id', finalRequestId);
+      }
     }
+    
+    console.log('📝 Request ID utilisé pour validation:', finalRequestId);
     
     const storedSessionId = sessionStorage.getItem('sessionId') || '';
     const storedPayload = sessionStorage.getItem('ocr_payload');
     
     console.log('🔍 Chargement validation:', {
       ridFromUrl: rid,
-      requestIdFromStorage: finalRequestId,
+      currentRequestIdFromStorage: finalRequestId,
       sessionIdFromStorage: storedSessionId,
       hasStoredPayload: !!storedPayload,
       finalRequestIdUsed: finalRequestId
@@ -88,15 +91,18 @@ export default function ValidationPage() {
       try {
         const payload = JSON.parse(storedPayload);
         
-        // 🔧 CORRECTION: Vérifier cohérence du requestId dans le payload
+        // 🔧 CORRECTION: FORCER la cohérence du requestId dans le payload
         if (payload.requestId && payload.requestId !== finalRequestId) {
           console.warn('⚠️ RequestId incohérent dans payload:', {
             payloadRequestId: payload.requestId,
             finalRequestId: finalRequestId
           });
-          // Corriger le payload
+          // FORCER la correction du payload
           payload.requestId = finalRequestId;
           sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
+          console.log('🔧 Payload corrigé avec requestId cohérent:', finalRequestId);
+        } else {
+          console.log('✅ RequestId cohérent dans payload:', finalRequestId);
         }
         
         setOcrPayload(payload);
@@ -183,13 +189,19 @@ export default function ValidationPage() {
       if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
 
       // 2) Récupération contexte
-      const storedRequestId = sessionStorage.getItem('requestId') || '';
+      const storedRequestId = sessionStorage.getItem('current_request_id') || '';
       const sessionId = sessionStorage.getItem('sessionId') || '';
-      if (!storedRequestId) throw new Error('requestId introuvable.');
+      if (!storedRequestId || storedRequestId === 'error_no_request_id') {
+        throw new Error('Request ID introuvable ou invalide.');
+      }
       
-      // 🔧 CORRECTION: Utiliser le requestId cohérent
+      // 🔧 CORRECTION: Utiliser le request_id cohérent
       const finalRequestId = requestId || storedRequestId;
-      if (!finalRequestId) throw new Error('Aucun requestId disponible.');
+      if (!finalRequestId || finalRequestId === 'error_no_request_id') {
+        throw new Error('Aucun request_id valide disponible.');
+      }
+      
+      console.log('📝 Request ID utilisé pour validation finale:', finalRequestId);
 
       const payload = JSON.parse(sessionStorage.getItem('ocr_payload') || '{}');
       const documentType = payload?.documentType ?? null;
@@ -231,7 +243,7 @@ export default function ValidationPage() {
       
       // Nettoyage du sessionStorage après sauvegarde réussie
       setTimeout(() => {
-        sessionStorage.removeItem('requestId');
+        sessionStorage.removeItem('current_request_id');
         sessionStorage.removeItem('sessionId');
         sessionStorage.removeItem('ocr_payload');
         

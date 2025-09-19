@@ -32,18 +32,21 @@ export default function UploadPage() {
     setLoading(true);
     
     try {
-      // 🔧 CORRECTION: Récupérer ou générer un requestId unique
-      let requestId = sessionStorage.getItem('requestId');
+      // 🔧 CORRECTION: Utiliser un requestId cohérent
+      let requestId = sessionStorage.getItem('current_request_id');
       if (!requestId) {
-        requestId = newRequestId();
-        console.log('🆕 Nouveau requestId généré:', requestId);
+        requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        sessionStorage.setItem('current_request_id', requestId);
+        console.log('🆕 Nouveau request_id généré:', requestId);
       } else {
-        console.log('♻️ RequestId existant réutilisé:', requestId);
+        console.log('♻️ Request_id existant réutilisé:', requestId);
       }
       
       // Persister immédiatement le requestId
-      sessionStorage.setItem('requestId', requestId);
+      sessionStorage.setItem('current_request_id', requestId);
       sessionStorage.setItem('ocr_started_at', new Date().toISOString());
+      
+      console.log('📝 Request ID utilisé pour upload:', requestId);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
@@ -110,8 +113,11 @@ export default function UploadPage() {
           sent: requestId,
           received: returnedRequestId
         });
-        // Utiliser celui envoyé pour maintenir la cohérence
+        // FORCER l'utilisation du requestId original pour maintenir la cohérence
         payload.requestId = requestId;
+        console.log('🔧 RequestId corrigé dans payload:', requestId);
+      } else {
+        console.log('✅ RequestId cohérent entre envoi et réception:', requestId);
       }
       
       sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
