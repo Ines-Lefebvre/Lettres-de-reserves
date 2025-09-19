@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
+import { newRequestId } from '../utils/requestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle } from 'lucide-react';
@@ -31,11 +32,43 @@ export default function UploadPage() {
     setLoading(true);
     
     try {
+      // Génération du requestId et vérification session
+      const requestId = newRequestId();
+      sessionStorage.setItem('requestId', requestId);
+      sessionStorage.setItem('ocr_started_at', new Date().toISOString());
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
+
+      console.log('🔐 Session utilisateur:', { userId: session.user.id, requestId });
+
+      // 1) Créer/mettre à jour la ligne uploads côté DB
+      console.log('📝 Création upload en base...');
+      const { error: uploadError } = await supabase.rpc('rpc_create_upload', {
+        request_id: requestId,
+        filename: file.name,
+        filesize: file.size,
+        file_type: file.type || 'application/pdf',
+        upload_status: 'processing'
+      });
+      
+      if (uploadError) {
+        console.error('❌ Erreur création upload:', uploadError);
+        throw new Error(`Erreur création upload: ${uploadError.message}`);
+      }
+      
+      console.log('✅ Upload créé en base avec requestId:', requestId);
+      
       console.log('🚀 Envoi vers N8N:', N8N_UPLOAD_URL);
       console.log('📁 Fichier:', { name: file.name, size: file.size, type: file.type });
       
       const fd = new FormData();
       fd.append('file', file);
+      fd.append('requestId', requestId);
+      fd.append('timestamp', new Date().toISOString());
+      fd.append('filename', file.name);
+      fd.append('filesize', file.size.toString());
+      fd.append('filetype', file.type || 'application/pdf');
       
       const res = await fetch(N8N_UPLOAD_URL, {
         method: 'POST',
@@ -59,16 +92,36 @@ export default function UploadPage() {
         throw new Error('Réponse OCR invalide');
       }
       
-      // Stockage en sessionStorage
-      sessionStorage.setItem('requestId', data.requestId || '');
-      sessionStorage.setItem('sessionId', data.payload?.sessionId || '');
-      sessionStorage.setItem('ocr_payload', JSON.stringify(data.payload || {}));
+      // Stockage en sessionStorage et traitement OCR
+      const payload = data.payload || {};
+      sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
+      sessionStorage.setItem('sessionId', payload.sessionId || '');
       
-      console.log('✅ Données stockées en sessionStorage:', {
-        requestId: data.requestId,
-        sessionId: data.payload?.sessionId,
-        hasPayload: !!data.payload
+      console.log('✅ Données OCR reçues:', {
+        requestId,
+        sessionId: payload.sessionId,
+        documentType: payload.documentType,
+        hasExtractedData: !!payload.extractedData
       });
+      
+      // 2) Enregistrer le résultat OCR côté DB (lié à l'upload créé)
+      console.log('💾 Sauvegarde résultat OCR...');
+      const { error: ocrError } = await supabase.rpc('rpc_upsert_ocr_result', {
+        request_id: requestId,
+        document_type: payload.documentType || 'AT_NORMALE',
+        extracted_fields: payload.extractedData || {},
+        validation_fields: payload.validationFields || {},
+        contextual_questions: payload.contextualQuestions || [],
+        ocr_confidence: payload.ocr_confidence ?? null
+      });
+      
+      if (ocrError) {
+        console.error('❌ Erreur sauvegarde OCR:', ocrError);
+        // Ne pas bloquer le processus, juste logger
+        console.warn('⚠️ Continuant malgré l\'erreur OCR...');
+      } else {
+        console.log('✅ Résultat OCR sauvegardé en base');
+      }
       
       // Redirection vers next (fourni par n8n)
       if (data.next) {
