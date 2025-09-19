@@ -24,15 +24,11 @@
  */
 export function dotObjectToNested(input: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {};
-  
   for (const k of Object.keys(input || {})) {
     const [section, field] = k.split('.');
     if (!section || !field) continue;
-    
-    out[section] = out[section] || {};
-    out[section][field] = input[k];
+    (out[section] ||= {})[field] = input[k];
   }
-  
   return out;
 }
 

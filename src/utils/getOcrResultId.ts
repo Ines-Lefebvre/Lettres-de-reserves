@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 
-export async function getOcrResultIdOrThrow(requestId: string) {
-  // 1) Regarder dans le payload mémoire
+export async function getOcrResultIdFromRequestId(requestId: string) {
+  // 1) Essayer depuis le payload en mémoire
   const raw = sessionStorage.getItem('ocr_payload');
   if (raw) {
     try {
@@ -11,18 +11,34 @@ export async function getOcrResultIdOrThrow(requestId: string) {
         p?.ocrResultId ||
         p?.metadata?.ocr_result_id ||
         p?.metadata?.ocrResultId;
-      if (cand) return cand as string;
+      if (cand) return String(cand);
     } catch {}
   }
 
-  // 2) Sinon, requête côté base par request_id (RLS lecture requise)
-  const { data, error } = await supabase
-    .from('ocr_results')
+  // 2) upload_id depuis uploads.request_id (unique)
+  const { data: ups, error: e1 } = await supabase
+    .from('uploads')
     .select('id')
     .eq('request_id', requestId)
+    .limit(1);
+  if (e1) throw new Error(`uploads lookup: ${e1.message}`);
+  const uploadId = ups?.[0]?.id;
+  if (!uploadId) throw new Error('Aucun upload pour ce request_id.');
+
+  // 3) dernier ocr_results lié à cet upload
+  const { data: ocrs, error: e2 } = await supabase
+    .from('ocr_results')
+    .select('id, created_at')
+    .eq('upload_id', uploadId)
     .order('created_at', { ascending: false })
     .limit(1);
-  if (error) throw new Error(error.message);
-  if (!data?.[0]?.id) throw new Error('Impossible de retrouver ocr_result_id');
-  return data[0].id as string;
+  if (e2) throw new Error(`ocr_results lookup: ${e2.message}`);
+  const ocrId = ocrs?.[0]?.id;
+  if (!ocrId) throw new Error('Aucun ocr_result lié à cet upload.');
+  return ocrId as string;
+}
+
+// Fonction legacy pour compatibilité
+export async function getOcrResultIdOrThrow(requestId: string) {
+  return getOcrResultIdFromRequestId(requestId);
 }
