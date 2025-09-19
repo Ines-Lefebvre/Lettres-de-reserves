@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
-import { getOcrResultIdFromRequestId } from '../utils/getOcrResultId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload } from 'lucide-react';
@@ -157,67 +156,55 @@ export default function ValidationPage() {
       setMsg(null);
       setSuccess(false);
 
-      // 1) session
+      // 1) Vérification session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
-      const userId = session.user.id;
 
-      // 2) contexte
+      // 2) Récupération contexte
       const requestId = sessionStorage.getItem('requestId') || '';
       const sessionId = sessionStorage.getItem('sessionId') || '';
       if (!requestId) throw new Error('requestId introuvable.');
-      
 
       const payload = JSON.parse(sessionStorage.getItem('ocr_payload') || '{}');
       const documentType = payload?.documentType ?? null;
       const completionStats = payload?.completionStats ?? {};
-      const source = 'mistral_ocr';
 
-      // 3) ocr_result_id (FK NOT NULL)
-      const ocr_result_id = await getOcrResultIdFromRequestId(requestId);
 
-      // 4) normalisation
-      const validated_fields = dotObjectToNested(validatedData);
 
-      // 5) construire la ligne EXACTE selon ton schéma
-      const row: Record<string, any> = {
-        user_id: userId,
-        ocr_result_id,
-        validated_fields,                 // jsonb NOT NULL DEFAULT '{}'
-        user_corrections: {},             // optionnel
-        contextual_answers: {},           // optionnel
-        answers: answers || [],           // jsonb NOT NULL DEFAULT '[]'
-        validation_status: 'validated',   // enum: draft|validated|submitted
-        validated_at: new Date().toISOString(),
-        request_id: requestId,
-        session_id: sessionId || null,
-        document_type: documentType || null,
-        completion_stats: completionStats,
-        source
-      };
-      Object.keys(row).forEach(k => row[k] == null && delete row[k]);
 
       console.log('💾 Sauvegarde validation Supabase:', {
-        userId,
+        userId: session.user.id,
         requestId,
         sessionId,
-        ocr_result_id,
         documentType,
-        validatedFieldsKeys: Object.keys(validated_fields),
+        validatedFieldsKeys: Object.keys(validatedData),
         answersCount: (answers || []).length,
-        source
+        source: 'mistral_ocr'
       });
 
-      // 6) insert SANS select, en 'minimal' (pas de ?columns=…)
-      const { error: err } = await supabase
-        .from('validations')
-        .insert(row, { returning: 'minimal' });
-      if (err) throw new Error(err.message);
+      // 3) Normalisation des données
+      const normalized = dotObjectToNested(validatedData);
+
+      // 4) Insérer la validation (la RPC résout elle-même ocr_result_id)
+      const { error: validationError } = await supabase.rpc('rpc_insert_validation', {
+        request_id: requestId,
+        validated_fields: normalized,
+        answers: answers || [],
+        contextual_answers: {},              // remplace si tu as des données
+        completion_stats: completionStats,
+        document_type: documentType,
+        session_id: sessionId,
+        source: 'mistral_ocr'
+      });
+      
+      if (validationError) {
+        console.error('❌ Erreur RPC validation:', validationError);
+        throw new Error(`Erreur validation: ${validationError.message}`);
+      }
 
       setSuccess(true);
       setMsg('Données validées et sauvegardées avec succès !');
-      console.info('Insert validations envoyé sans select()');
-      console.log('✅ Validation sauvegardée avec succès');
+      console.log('✅ Validation sauvegardée via RPC avec succès');
       
       // Nettoyage du sessionStorage après sauvegarde réussie
       setTimeout(() => {
