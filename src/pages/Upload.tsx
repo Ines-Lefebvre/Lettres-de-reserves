@@ -57,11 +57,11 @@ export default function UploadPage() {
       // 1) Créer/mettre à jour la ligne uploads côté DB
       console.log('📝 Création upload en base...');
       const { error: uploadError } = await supabase.rpc('rpc_create_upload', {
-        request_id: requestId,
-        filename: file.name,
-        filesize: file.size,
-        file_type: file.type || 'application/pdf',
-        upload_status: 'processing'
+        p_request_id: requestId,
+        p_filename: file.name,
+        p_filesize: file.size,
+        p_file_type: file.type || 'application/pdf',
+        p_upload_status: 'processing'
       });
       
       if (uploadError) {
@@ -134,12 +134,12 @@ export default function UploadPage() {
       // 2) Enregistrer le résultat OCR côté DB (lié à l'upload créé)
       console.log('💾 Sauvegarde résultat OCR...');
       const { error: ocrError } = await supabase.rpc('rpc_upsert_ocr_result', {
-        request_id: requestId,
-        document_type: payload.documentType || 'AT_NORMALE',
-        extracted_fields: payload.extractedData || {},
-        validation_fields: payload.validationFields || {},
-        contextual_questions: payload.contextualQuestions || [],
-        ocr_confidence: payload.ocr_confidence ?? null
+        p_request_id: requestId,
+        p_document_type: payload.documentType || 'AT_NORMALE',
+        p_extracted_fields: payload.extractedData || {},
+        p_validation_fields: payload.validationFields || {},
+        p_contextual_questions: payload.contextualQuestions || [],
+        p_ocr_confidence: payload.ocr_confidence ?? null
       });
       
       if (ocrError) {
