@@ -191,10 +191,11 @@ export default function ValidationPage() {
       });
 
       // 4) (Optionnel) Upsert profil à la première validation
-      await supabase.from('profiles').upsert({
-        user_id: userId,
-        email: session.user.email
-      }, { onConflict: 'user_id' });
+      // AVANT (commenter pour l'instant) :
+      // await supabase.from('profiles').upsert({
+      //   user_id: userId,
+      //   email: session.user.email
+      // }, { onConflict: 'user_id' });
 
       // 5) Insert propre dans validations
       const { error } = await supabase
@@ -218,6 +219,7 @@ export default function ValidationPage() {
         throw new Error(error.message || 'Échec de l\'enregistrement.');
       }
 
+      console.info('Insert validations envoyé sans select()');
       console.log('✅ Validation sauvegardée avec succès');
 
       // 6) Succès → feedback + suite
