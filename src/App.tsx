@@ -102,7 +102,7 @@ const HomePage: React.FC = () => {
             
             <div className="bg-surface-neutral p-6 rounded-lg shadow-md text-center">
               <div className="text-3xl font-bold text-secondary mb-2">+35%</div>
-              <p className="text-text-primary font-body">d'augmentation moyenne du taux cotisation AT/MP</p>
+              <p className="text-text-primary font-body">d'augmentation moyenne du taux de cotisation AT/MP</p>
               <p className="text-sm text-gray-700 mt-2">(URSSAF, 2023)</p>
             </div>
             

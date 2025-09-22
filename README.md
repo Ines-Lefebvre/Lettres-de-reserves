@@ -12,5 +12,5 @@ Placez les fichiers suivants dans le dossier `public/` :
 ### Performances
 - Lazy loading avec IntersectionObserver
 - Sources adaptées mobile/desktop
-- Lecture à la demande (pas d'autoplay)
+- Autoplay intelligent (desktop uniquement, respecte prefers-reduced-motion)
 - Preload metadata uniquement
