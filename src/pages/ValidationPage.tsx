@@ -35,6 +35,19 @@ interface CompletionStats {
   missingFields: string[];
 }
 
+interface ContextualForm {
+  q1_out_of_hours: 'oui' | 'non' | '';
+  q2_time_exact: string;
+  q3_not_on_mission: 'oui' | 'non' | '';
+  q4_prior_pain: 'oui' | 'non' | '';
+  q4_prior_pain_duration: string;
+  q5_med_docs: 'oui' | 'non' | '';
+  q6_internal_inquiry: 'oui' | 'non' | '';
+  q6_inquiry_conclusions: string;
+  q7_summary_circumstances: string;
+  q8_free_comment: string;
+}
+
 export default function ValidationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -57,6 +70,22 @@ export default function ValidationPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  
+  // État du formulaire contextuel
+  const [contextualForm, setContextualForm] = useState<ContextualForm>({
+    q1_out_of_hours: '',
+    q2_time_exact: '',
+    q3_not_on_mission: '',
+    q4_prior_pain: '',
+    q4_prior_pain_duration: '',
+    q5_med_docs: '',
+    q6_internal_inquiry: '',
+    q6_inquiry_conclusions: '',
+    q7_summary_circumstances: '',
+    q8_free_comment: ''
+  });
+  
+  const [contextualErrors, setContextualErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // Récupération des données depuis URL et sessionStorage
@@ -165,8 +194,83 @@ export default function ValidationPage() {
     }));
   };
 
+  // Validation du formulaire contextuel
+  const validateContextualForm = (form: ContextualForm): Record<string, string> => {
+    const e: Record<string, string> = {};
+
+    // Toggles requis
+    if (!form.q1_out_of_hours) e.q1_out_of_hours = "Sélectionnez Oui ou Non.";
+    if (!form.q3_not_on_mission) e.q3_not_on_mission = "Sélectionnez Oui ou Non.";
+    if (!form.q4_prior_pain) e.q4_prior_pain = "Sélectionnez Oui ou Non.";
+    if (!form.q5_med_docs) e.q5_med_docs = "Sélectionnez Oui ou Non.";
+    if (!form.q6_internal_inquiry) e.q6_internal_inquiry = "Sélectionnez Oui ou Non.";
+
+    // Dépendances
+    if (form.q4_prior_pain === 'oui') {
+      if (!form.q4_prior_pain_duration?.trim() || form.q4_prior_pain_duration.trim().length < 3) {
+        e.q4_prior_pain_duration = "Veuillez préciser la durée (jours/semaines/mois).";
+      }
+    }
+    if (form.q6_internal_inquiry === 'oui') {
+      if (!form.q6_inquiry_conclusions?.trim() || form.q6_inquiry_conclusions.trim().length < 10) {
+        e.q6_inquiry_conclusions = "Veuillez résumer les conclusions principales de l'enquête.";
+      }
+    }
+
+    return e;
+  };
+
+  // Gestion des changements dans le formulaire contextuel
+  const handleContextualChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    
+    setContextualForm(prev => {
+      const newForm = { ...prev, [name]: value };
+      
+      // Si on change un parent toggle de "oui" à "non", vider le champ dépendant
+      if (name === 'q4_prior_pain' && value === 'non') {
+        newForm.q4_prior_pain_duration = '';
+      }
+      if (name === 'q6_internal_inquiry' && value === 'non') {
+        newForm.q6_inquiry_conclusions = '';
+      }
+      
+      return newForm;
+    });
+    
+    // Recalculer les erreurs immédiatement
+    setTimeout(() => {
+      const newForm = { ...contextualForm, [name]: value };
+      if (name === 'q4_prior_pain' && value === 'non') {
+        newForm.q4_prior_pain_duration = '';
+      }
+      if (name === 'q6_internal_inquiry' && value === 'non') {
+        newForm.q6_inquiry_conclusions = '';
+      }
+      setContextualErrors(validateContextualForm(newForm));
+    }, 0);
+  };
+
+  // Vérifier si le formulaire contextuel est valide
+  const isContextualFormValid = Object.keys(contextualErrors).length === 0;
+
   // Sauvegarde directe dans Supabase
-  const handleConfirm = async () => {
+  const handleConfirm = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    // Validation finale du formulaire contextuel
+    const finalErrors = validateContextualForm(contextualForm);
+    setContextualErrors(finalErrors);
+    
+    if (Object.keys(finalErrors).length > 0) {
+      // Scroll vers la première erreur
+      const firstError = document.querySelector('[data-error="true"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+    
     try {
       setSaving(true);
       setMsg(null);
@@ -196,13 +300,21 @@ export default function ValidationPage() {
 
       // 3) Normalisation des données
       const normalized = dotObjectToNested(validatedData);
+      
+      // Ajouter les réponses contextuelles
+      const contextualAnswers = Object.entries(contextualForm)
+        .filter(([key, value]) => value !== '')
+        .reduce((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {} as Record<string, any>);
 
       // 4) Insérer la validation (la RPC résout elle-même ocr_result_id)
       const { error: validationError } = await supabase.rpc('rpc_insert_validation', {
         p_request_id: finalRequestId,
         p_validated_fields: normalized,
         p_answers: answers || [],
-        p_contextual_answers: {},              // remplace si tu as des données
+        p_contextual_answers: contextualAnswers,
         p_completion_stats: completionStats,
         p_document_type: documentType,
         p_session_id: sessionId,
@@ -234,6 +346,11 @@ export default function ValidationPage() {
       setSaving(false);
     }
   };
+
+  // Recalculer les erreurs à chaque changement
+  React.useEffect(() => {
+    setContextualErrors(validateContextualForm(contextualForm));
+  }, [contextualForm]);
 
   // Ancien handler n8n (gardé en commentaire pour référence)
   const onValidateN8N = async () => {
@@ -531,8 +648,349 @@ export default function ValidationPage() {
                   </div>
                 )}
 
-                {/* Bouton de validation */}
+                {/* Nouveau panneau Questions contextuelles */}
                 <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6">
+                  <h3 className="font-headline text-lg font-bold text-brand-text-dark mb-6">
+                    Questions contextuelles obligatoires
+                  </h3>
+                  
+                  <form onSubmit={handleConfirm} className="space-y-6">
+                    {/* Q1 - Hors horaires */}
+                    <fieldset id="q1_out_of_hours" className="space-y-2">
+                      <legend className="font-medium text-gray-700">
+                        L'accident s'est-il produit en dehors des heures de travail prévues au planning ?
+                        <span className="text-red-500 ml-1">*</span>
+                      </legend>
+                      <div className="flex gap-6">
+                        <label htmlFor="q1_out_of_hours-yes" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q1_out_of_hours-yes" 
+                            name="q1_out_of_hours" 
+                            value="oui"
+                            checked={contextualForm.q1_out_of_hours === 'oui'}
+                            aria-invalid={!!contextualErrors.q1_out_of_hours}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Oui
+                        </label>
+                        <label htmlFor="q1_out_of_hours-no" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q1_out_of_hours-no" 
+                            name="q1_out_of_hours" 
+                            value="non"
+                            checked={contextualForm.q1_out_of_hours === 'non'}
+                            aria-invalid={!!contextualErrors.q1_out_of_hours}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Non
+                        </label>
+                      </div>
+                      {contextualErrors.q1_out_of_hours && (
+                        <p className="text-sm text-red-600 mt-1" data-error="true">
+                          {contextualErrors.q1_out_of_hours}
+                        </p>
+                      )}
+                    </fieldset>
+
+                    {/* Q2 - Heure exacte */}
+                    <div className="space-y-2">
+                      <label htmlFor="q2_time_exact" className="block font-medium text-gray-700">
+                        À quelle heure exacte l'accident s'est-il produit ?
+                      </label>
+                      <textarea
+                        id="q2_time_exact"
+                        name="q2_time_exact"
+                        value={contextualForm.q2_time_exact}
+                        onChange={handleContextualChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                        rows={2}
+                        placeholder="Ex: 14h30, en fin de pause déjeuner..."
+                      />
+                    </div>
+
+                    {/* Q3 - Pas en mission */}
+                    <fieldset id="q3_not_on_mission" className="space-y-2">
+                      <legend className="font-medium text-gray-700">
+                        Disposez-vous d'éléments prouvant que le salarié n'était pas en mission ou astreinte à ce moment-là ?
+                        <span className="text-red-500 ml-1">*</span>
+                      </legend>
+                      <div className="flex gap-6">
+                        <label htmlFor="q3_not_on_mission-yes" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q3_not_on_mission-yes" 
+                            name="q3_not_on_mission" 
+                            value="oui"
+                            checked={contextualForm.q3_not_on_mission === 'oui'}
+                            aria-invalid={!!contextualErrors.q3_not_on_mission}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Oui
+                        </label>
+                        <label htmlFor="q3_not_on_mission-no" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q3_not_on_mission-no" 
+                            name="q3_not_on_mission" 
+                            value="non"
+                            checked={contextualForm.q3_not_on_mission === 'non'}
+                            aria-invalid={!!contextualErrors.q3_not_on_mission}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Non
+                        </label>
+                      </div>
+                      {contextualErrors.q3_not_on_mission && (
+                        <p className="text-sm text-red-600 mt-1" data-error="true">
+                          {contextualErrors.q3_not_on_mission}
+                        </p>
+                      )}
+                    </fieldset>
+
+                    {/* Q4 - Douleurs antérieures */}
+                    <fieldset id="q4_prior_pain" className="space-y-2">
+                      <legend className="font-medium text-gray-700">
+                        Le salarié se plaignait-il déjà de douleurs ou d'un problème de santé avant l'accident ?
+                        <span className="text-red-500 ml-1">*</span>
+                      </legend>
+                      <div className="flex gap-6">
+                        <label htmlFor="q4_prior_pain-yes" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q4_prior_pain-yes" 
+                            name="q4_prior_pain" 
+                            value="oui"
+                            checked={contextualForm.q4_prior_pain === 'oui'}
+                            aria-invalid={!!contextualErrors.q4_prior_pain}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Oui
+                        </label>
+                        <label htmlFor="q4_prior_pain-no" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q4_prior_pain-no" 
+                            name="q4_prior_pain" 
+                            value="non"
+                            checked={contextualForm.q4_prior_pain === 'non'}
+                            aria-invalid={!!contextualErrors.q4_prior_pain}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Non
+                        </label>
+                      </div>
+                      {contextualErrors.q4_prior_pain && (
+                        <p className="text-sm text-red-600 mt-1" data-error="true">
+                          {contextualErrors.q4_prior_pain}
+                        </p>
+                      )}
+                      
+                      {/* Champ dépendant Q4 */}
+                      {contextualForm.q4_prior_pain === 'oui' && (
+                        <div className="mt-3 ml-4 space-y-2">
+                          <label htmlFor="q4_prior_pain_duration" className="block font-medium text-gray-700">
+                            Si oui, depuis combien de jours/semaines/mois ?
+                            <span className="text-red-500 ml-1">*</span>
+                          </label>
+                          <textarea
+                            id="q4_prior_pain_duration"
+                            name="q4_prior_pain_duration"
+                            value={contextualForm.q4_prior_pain_duration}
+                            onChange={handleContextualChange}
+                            aria-invalid={!!contextualErrors.q4_prior_pain_duration}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                            rows={2}
+                            placeholder="Ex: 3 semaines, 2 mois..."
+                          />
+                          {contextualErrors.q4_prior_pain_duration && (
+                            <p className="text-sm text-red-600 mt-1" data-error="true">
+                              {contextualErrors.q4_prior_pain_duration}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </fieldset>
+
+                    {/* Q5 - Documents médicaux */}
+                    <fieldset id="q5_med_docs" className="space-y-2">
+                      <legend className="font-medium text-gray-700">
+                        Disposez-vous de documents médicaux ou témoignages attestant de ces plaintes antérieures ?
+                        <span className="text-red-500 ml-1">*</span>
+                      </legend>
+                      <div className="flex gap-6">
+                        <label htmlFor="q5_med_docs-yes" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q5_med_docs-yes" 
+                            name="q5_med_docs" 
+                            value="oui"
+                            checked={contextualForm.q5_med_docs === 'oui'}
+                            aria-invalid={!!contextualErrors.q5_med_docs}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Oui
+                        </label>
+                        <label htmlFor="q5_med_docs-no" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q5_med_docs-no" 
+                            name="q5_med_docs" 
+                            value="non"
+                            checked={contextualForm.q5_med_docs === 'non'}
+                            aria-invalid={!!contextualErrors.q5_med_docs}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Non
+                        </label>
+                      </div>
+                      {contextualErrors.q5_med_docs && (
+                        <p className="text-sm text-red-600 mt-1" data-error="true">
+                          {contextualErrors.q5_med_docs}
+                        </p>
+                      )}
+                    </fieldset>
+
+                    {/* Q6 - Enquête interne */}
+                    <fieldset id="q6_internal_inquiry" className="space-y-2">
+                      <legend className="font-medium text-gray-700">
+                        Une enquête interne a-t-elle été réalisée ?
+                        <span className="text-red-500 ml-1">*</span>
+                      </legend>
+                      <div className="flex gap-6">
+                        <label htmlFor="q6_internal_inquiry-yes" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q6_internal_inquiry-yes" 
+                            name="q6_internal_inquiry" 
+                            value="oui"
+                            checked={contextualForm.q6_internal_inquiry === 'oui'}
+                            aria-invalid={!!contextualErrors.q6_internal_inquiry}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Oui
+                        </label>
+                        <label htmlFor="q6_internal_inquiry-no" className="inline-flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            id="q6_internal_inquiry-no" 
+                            name="q6_internal_inquiry" 
+                            value="non"
+                            checked={contextualForm.q6_internal_inquiry === 'non'}
+                            aria-invalid={!!contextualErrors.q6_internal_inquiry}
+                            onChange={handleContextualChange}
+                            className="text-brand-accent focus:ring-brand-accent"
+                          />
+                          Non
+                        </label>
+                      </div>
+                      {contextualErrors.q6_internal_inquiry && (
+                        <p className="text-sm text-red-600 mt-1" data-error="true">
+                          {contextualErrors.q6_internal_inquiry}
+                        </p>
+                      )}
+                      
+                      {/* Champ dépendant Q6 */}
+                      {contextualForm.q6_internal_inquiry === 'oui' && (
+                        <div className="mt-3 ml-4 space-y-2">
+                          <label htmlFor="q6_inquiry_conclusions" className="block font-medium text-gray-700">
+                            Quelles conclusions principales en ressortent sur le lien avec le travail ?
+                            <span className="text-red-500 ml-1">*</span>
+                          </label>
+                          <textarea
+                            id="q6_inquiry_conclusions"
+                            name="q6_inquiry_conclusions"
+                            value={contextualForm.q6_inquiry_conclusions}
+                            onChange={handleContextualChange}
+                            aria-invalid={!!contextualErrors.q6_inquiry_conclusions}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                            rows={3}
+                            placeholder="Résumez les conclusions principales..."
+                          />
+                          {contextualErrors.q6_inquiry_conclusions && (
+                            <p className="text-sm text-red-600 mt-1" data-error="true">
+                              {contextualErrors.q6_inquiry_conclusions}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </fieldset>
+
+                    {/* Q7 - Résumé circonstances */}
+                    <div className="space-y-2">
+                      <label htmlFor="q7_summary_circumstances" className="block font-medium text-gray-700">
+                        Pouvez-vous résumer les circonstances exactes ayant conduit à l'accident selon l'enquête ?
+                      </label>
+                      <textarea
+                        id="q7_summary_circumstances"
+                        name="q7_summary_circumstances"
+                        value={contextualForm.q7_summary_circumstances}
+                        onChange={handleContextualChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                        rows={4}
+                        placeholder="Décrivez les circonstances exactes..."
+                      />
+                    </div>
+
+                    {/* Q8 - Commentaire libre */}
+                    <div className="space-y-2">
+                      <label htmlFor="q8_free_comment" className="block font-medium text-gray-700">
+                        Souhaitez-vous ajouter un commentaire libre avant la génération de la lettre ?
+                      </label>
+                      <textarea
+                        id="q8_free_comment"
+                        name="q8_free_comment"
+                        value={contextualForm.q8_free_comment}
+                        onChange={handleContextualChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                        rows={3}
+                        placeholder="Commentaire libre..."
+                      />
+                    </div>
+
+                    {/* Bouton de validation */}
+                    <button
+                      id="btn_validate_context"
+                      type="submit"
+                      disabled={!isContextualFormValid}
+                      className={`w-full rounded-lg px-4 py-3 font-semibold shadow transition-all duration-300 flex items-center justify-center gap-2 ${
+                        isContextualFormValid 
+                          ? 'bg-brand-accent hover:bg-opacity-90 text-white' 
+                          : 'bg-brand-accent text-white opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      {saving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          Enregistrement...
+                        </>
+                      ) : success ? (
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          Données validées !
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-5 h-5" />
+                          Valider les données
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Bouton de validation */}
+                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6" style={{ display: 'none' }}>
                   <button
                     onClick={handleConfirm}
                     disabled={saving || success}
