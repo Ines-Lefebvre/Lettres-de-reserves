@@ -88,7 +88,7 @@ export default function ValidationPageNew() {
               </p>
               <div className="text-sm text-gray-500 space-y-1">
                 <p>Session: {query.session_id ?? '–'}</p>
-                <p>Requête: {query.req_id || query.request_id ?? '–'}</p>
+                <p>Requête: {(query.req_id || query.request_id) ?? '–'}</p>
               </div>
             </header>
 
