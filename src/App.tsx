@@ -7,6 +7,7 @@ import LazyVideo from './components/LazyVideo';
 import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
+import ValidationPageNew from './pages/ValidationPageNew';
 import LoginPage from './pages/Login';
 import './utils/debugUtils';
 
@@ -397,6 +398,7 @@ function App() {
       <Route path="/upload" element={<UploadPage />} />
       <Route path="/response" element={<WebhookResponsePage />} />
       <Route path="/validation" element={<ValidationPage />} />
+      <Route path="/validation-new" element={<ValidationPageNew />} />
     </Routes>
   );
 }
