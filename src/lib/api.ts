@@ -15,6 +15,13 @@ export async function fetchValidation(query: Record<string, string | undefined>)
   );
   params.set('_cb', String(Date.now())); // anti-cache
   const url = `${VALIDATION_ENDPOINT}?${params.toString()}`;
+  
+  console.log('🔍 API - Fetching validation:', {
+    endpoint: VALIDATION_ENDPOINT,
+    query,
+    finalUrl: url
+  });
+  
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   
@@ -26,9 +33,19 @@ export async function fetchValidation(query: Record<string, string | undefined>)
       credentials: 'omit' 
     });
     const text = await res.text();
+    
+    console.log('🔍 API - Response received:', {
+      status: res.status,
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      textLength: text?.length || 0,
+      textPreview: text?.substring(0, 200)
+    });
+    
     clearTimeout(timer);
     return { status: res.status, text };
   } catch (e) {
+    console.error('❌ API - Fetch failed:', e);
     clearTimeout(timer);
     throw e;
   }

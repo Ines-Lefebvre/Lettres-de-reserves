@@ -14,38 +14,62 @@ export default function ValidationPageNew() {
   const query = useMemo(() => {
     if (typeof window === 'undefined') return {};
     const u = new URL(window.location.href);
+    
+    console.log('🔍 VALIDATION NEW - URL Analysis:', {
+      href: u.href,
+      searchParams: Object.fromEntries(u.searchParams.entries()),
+      sessionStorageKeys: Object.keys(sessionStorage)
+    });
+    
     return {
       session_id: u.searchParams.get('session_id') || u.searchParams.get('SessionID') || undefined,
       req_id: u.searchParams.get('req_id') || u.searchParams.get('RequestID') || undefined,
-      request_id: u.searchParams.get('request_id') || undefined,
+      request_id: u.searchParams.get('request_id') || u.searchParams.get('rid') || undefined,
     };
   }, []);
 
   useEffect(() => {
     let mounted = true;
     async function run() {
+      console.log('🔍 VALIDATION NEW - Starting fetch with query:', query);
       setState('loading');
       try {
         const res = await fetchValidation(query);
+        console.log('🔍 VALIDATION NEW - Fetch response:', {
+          status: res.status,
+          textLength: res.text?.length || 0,
+          textPreview: res.text?.substring(0, 100)
+        });
+        
         if (!mounted) return;
         
         if (!res.text || res.text.trim().length === 0 || res.status === 204) {
+          console.warn('⚠️ VALIDATION NEW - Empty response');
           setState('empty'); 
           setMeta({ status: res.status, raw: res.text }); 
           return;
         }
         
         const parsed = safeParseJson(res.text);
+        console.log('🔍 VALIDATION NEW - Parse result:', {
+          ok: parsed.ok,
+          hasData: !!parsed.data,
+          error: parsed.error
+        });
+        
         if (!parsed.ok) {
+          console.error('❌ VALIDATION NEW - JSON parse failed');
           setState('badjson'); 
           setMeta({ status: res.status, raw: parsed.raw, error: parsed.error }); 
           return;
         }
         
+        console.log('✅ VALIDATION NEW - Success, payload:', parsed.data);
         setPayload(parsed.data);
         setState('ok');
       } catch (e: any) {
         if (!mounted) return;
+        console.error('❌ VALIDATION NEW - Fetch error:', e);
         setState('error'); 
         setMeta({ error: String(e) });
       }

@@ -94,15 +94,23 @@ export default function ValidationPage() {
     // 🔧 AUCUNE GÉNÉRATION - RÉCUPÉRATION UNIQUEMENT
     const finalRequestId = sessionStorage.getItem('current_request_id') || rid || 'error_no_request_id';
     
-    console.log('REQUEST_ID DEBUGGING:', {
+    console.log('🔍 VALIDATION PAGE - REQUEST_ID DEBUGGING:', {
       source: 'validation_load',
       requestId: finalRequestId,
       ridFromUrl: rid,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sessionStorageKeys: Object.keys(sessionStorage),
+      hasOcrPayload: !!sessionStorage.getItem('ocr_payload')
     });
     
     const storedSessionId = sessionStorage.getItem('sessionId') || '';
     const storedPayload = sessionStorage.getItem('ocr_payload');
+    
+    console.log('🔍 VALIDATION PAGE - Session Storage:', {
+      hasStoredPayload: !!storedPayload,
+      storedSessionId,
+      payloadLength: storedPayload?.length || 0
+    });
     
     setRequestId(finalRequestId);
     setSessionId(storedSessionId);
@@ -110,6 +118,14 @@ export default function ValidationPage() {
     if (storedPayload) {
       try {
         const payload = JSON.parse(storedPayload);
+        
+        console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
+          hasExtractedData: !!payload.extractedData,
+          hasValidationFields: !!payload.validationFields,
+          hasContextualQuestions: !!payload.contextualQuestions,
+          documentType: payload.documentType,
+          requestIdInPayload: payload.requestId
+        });
         
         // 🔧 VÉRIFICATION COHÉRENCE (PAS DE GÉNÉRATION)
         if (payload.requestId && payload.requestId !== finalRequestId) {
@@ -152,10 +168,17 @@ export default function ValidationPage() {
         });
         
       } catch (error) {
-        console.error('❌ Erreur parsing OCR payload:', error);
+        console.error('❌ VALIDATION PAGE - Erreur parsing OCR payload:', error, {
+          rawPayload: storedPayload?.substring(0, 200) + '...'
+        });
         setMsg('Erreur lors du chargement des données OCR');
       }
     } else {
+      console.error('❌ VALIDATION PAGE - Aucune donnée OCR trouvée:', {
+        searchParams: Object.fromEntries(searchParams.entries()),
+        sessionStorageKeys: Object.keys(sessionStorage),
+        currentUrl: window.location.href
+      });
       setMsg('Aucune donnée OCR trouvée. Veuillez recommencer l\'upload.');
     }
   }, [searchParams]);
