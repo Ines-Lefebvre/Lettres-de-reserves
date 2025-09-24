@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchValidation, safeParseJson } from '../lib/api';
 import AuthGuard from '../components/AuthGuard';
 import Header from '../components/Header';
