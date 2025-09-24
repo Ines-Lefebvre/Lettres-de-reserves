@@ -566,8 +566,8 @@ export default function ValidationPage() {
 
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Données extraites */}
-              <div className="lg:col-span-2">
-                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6">
+              <div className="lg:col-span-2 flex">
+                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6 flex-1 flex flex-col">
                   <h2 className="font-headline text-xl font-bold text-brand-text-dark mb-6">
                     Données extraites
                   </h2>
@@ -590,7 +590,7 @@ export default function ValidationPage() {
                   </div>
                   
                   {/* Contenu de l'onglet actif */}
-                  <div className="min-h-[300px]">
+                  <div className="flex-1 min-h-[400px] overflow-y-auto">
                     {extractedData[activeTab] ? (
                       renderDataSection(activeTab, extractedData[activeTab])
                     ) : (
@@ -604,80 +604,15 @@ export default function ValidationPage() {
               </div>
 
               {/* Questions contextuelles */}
-              <div className="space-y-6">
-                {/* Questions */}
-                {contextualQuestions.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6">
-                    <h3 className="font-headline text-lg font-bold text-brand-text-dark mb-4">
-                      Questions contextuelles
-                    </h3>
-                    
-                    <div className="space-y-4">
-                      {contextualQuestions.map(question => (
-                        <div key={question.id} className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {question.question}
-                            {question.required && <span className="text-red-500 ml-1">*</span>}
-                          </label>
-                          
-                          {question.type === 'boolean' ? (
-                            <div className="flex gap-4">
-                              <label className="flex items-center">
-                                <input
-                                  type="radio"
-                                  name={question.id}
-                                  value="true"
-                                  checked={answers[question.id] === true}
-                                  onChange={() => handleAnswerChange(question.id, true)}
-                                  className="mr-2"
-                                />
-                                Oui
-                              </label>
-                              <label className="flex items-center">
-                                <input
-                                  type="radio"
-                                  name={question.id}
-                                  value="false"
-                                  checked={answers[question.id] === false}
-                                  onChange={() => handleAnswerChange(question.id, false)}
-                                  className="mr-2"
-                                />
-                                Non
-                              </label>
-                            </div>
-                          ) : question.type === 'select' && question.options ? (
-                            <select
-                              value={answers[question.id] || ''}
-                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
-                            >
-                              <option value="">Sélectionner...</option>
-                              {question.options.map(option => (
-                                <option key={option} value={option}>{option}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <textarea
-                              value={answers[question.id] || ''}
-                              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
-                              rows={3}
-                              placeholder="Votre réponse..."
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Nouveau panneau Questions contextuelles */}
-                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6">
+              <div className="flex">
+                {/* Questions contextuelles obligatoires */}
+                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6 h-full flex flex-col">
                   <h3 className="font-headline text-lg font-bold text-brand-text-dark mb-6">
-                    Questions contextuelles obligatoires
+                    Questions contextuelles
                   </h3>
                   
-                  <form onSubmit={handleConfirm} className="space-y-6">
+                  <form onSubmit={handleConfirm} className="space-y-6 flex-1 flex flex-col">
+                    <div className="flex-1 overflow-y-auto space-y-6">
                     {/* Q1 - Hors horaires */}
                     <fieldset id="q1_out_of_hours" className="space-y-2">
                       <legend className="font-medium text-gray-700">
@@ -980,9 +915,11 @@ export default function ValidationPage() {
                         placeholder="Commentaire libre..."
                       />
                     </div>
+                    </div>
 
                     {/* Bouton de validation */}
-                    <button
+                    <div className="pt-6 border-t border-gray-200">
+                      <button
                       id="btn_validate_context"
                       type="submit"
                       disabled={!isContextualFormValid}
@@ -1008,67 +945,45 @@ export default function ValidationPage() {
                           Valider les données
                         </>
                       )}
-                    </button>
+                      </button>
+                    </div>
                   </form>
-                </div>
-
-                {/* Bouton de validation */}
-                <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-6" style={{ display: 'none' }}>
-                  <button
-                    onClick={handleConfirm}
-                    disabled={saving || success}
-                    className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                      success 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-brand-accent hover:bg-opacity-90 text-white'
-                    }`}
-                  >
-                    {saving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        Enregistrement...
-                      </>
-                    ) : success ? (
-                      <>
-                        <CheckCircle className="w-5 h-5" />
-                        Données validées !
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-5 h-5" />
-                        Valider les données
-                      </>
-                    )}
-                  </button>
-                  
-                  {msg && (
-                    <div className={`mt-4 p-3 rounded-md text-sm border flex items-center gap-2 ${
-                      success 
-                        ? 'bg-green-50 text-green-700 border-green-200' 
-                        : 'bg-red-50 text-red-700 border-red-200'
-                    }`}>
-                      {success ? (
-                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      )}
-                      {msg}
-                    </div>
-                  )}
-                  
-                  {success && (
-                    <div className="mt-4 text-xs text-green-600 text-center">
-                      <p>Redirection automatique dans quelques secondes...</p>
-                    </div>
-                  )}
-                  
-                  <div className="mt-4 text-xs text-gray-500 text-center">
-                    <p>Session ID: {sessionId}</p>
-                    <p>Request ID: {requestId}</p>
-                  </div>
                 </div>
               </div>
             </div>
+            
+            {/* Messages de statut */}
+            {msg && (
+              <div className={`mt-6 p-4 rounded-lg border flex items-center gap-3 ${
+                success 
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}>
+                {success ? (
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <p className="font-medium">{msg}</p>
+                  {success && (
+                    <p className="text-sm mt-1 opacity-75">
+                      Redirection automatique dans quelques secondes...
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Debug info (masqué par défaut) */}
+            <details className="mt-6 text-xs text-gray-500">
+              <summary className="cursor-pointer hover:text-gray-700">Informations de debug</summary>
+              <div className="mt-2 bg-gray-50 rounded p-3 space-y-1">
+                <p><strong>Session ID:</strong> {sessionId}</p>
+                <p><strong>Request ID:</strong> {requestId}</p>
+                <p><strong>État:</strong> {saving ? 'Sauvegarde...' : success ? 'Succès' : 'Prêt'}</p>
+              </div>
+            </details>
           </div>
         </main>
         
