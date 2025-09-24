@@ -153,10 +153,14 @@ export default function UploadPage() {
       // Redirection vers next (fourni par n8n)
       if (data.next) {
         console.log('🔄 Redirection vers:', data.next);
-        window.location.href = data.next;
+        // Ajouter le requestId dans l'URL de redirection
+        const redirectUrl = new URL(data.next, window.location.origin);
+        redirectUrl.searchParams.set('rid', requestId);
+        console.log('🔄 Redirection avec requestId:', redirectUrl.href);
+        window.location.href = redirectUrl.href;
       } else {
         // Fallback si pas de next
-        nav('/validation');
+        nav(`/validation?rid=${requestId}`);
       }
       
     } catch (error: any) {
