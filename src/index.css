@@ -29,3 +29,42 @@
     transform: rotate(360deg);
   }
 }
+
+/* Styles pour l'alignement des hauteurs */
+.validation-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .validation-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* Amélioration du scroll dans les conteneurs */
+.scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: #c19a5f #f1f1f1;
+}
+
+.scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background: #c19a5f;
+  border-radius: 3px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #a08550;
+}
