@@ -12,62 +12,81 @@ export default function UploadPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showRetryBanner, setShowRetryBanner] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [lastUploadData, setLastUploadData] = useState<{
     file: File;
     requestId: string;
-    formData: FormData;
+    userId: string;
   } | null>(null);
   const nav = useNavigate();
   
-  // URL du webhook N8N pour l'upload
-  const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL;
+  // URL fixe du webhook N8N
+  const N8N_UPLOAD_URL = 'https://n8n.srv833062.hstgr.cloud/webhook/validation-created';
 
-  // Fonction utilitaire pour parser JSON de manière sécurisée
-  const safeJsonParse = async (response: Response): Promise<{ success: boolean; data?: any; error?: string }> => {
+  // Fonction d'envoi vers n8n avec gestion robuste des erreurs
+  const sendToN8N = async (file: File, requestId: string, userId: string): Promise<any> => {
+    console.log('🚀 Envoi vers n8n:', {
+      url: N8N_UPLOAD_URL,
+      fileName: file.name,
+      fileSize: file.size,
+      requestId,
+      userId
+    });
+
+    // Préparation du FormData
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('request_id', requestId);
+    formData.append('user_id', userId);
+
+    // Envoi de la requête
+    const response = await fetch(N8N_UPLOAD_URL, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      body: formData
+      // Ne pas définir Content-Type manuellement avec FormData
+    });
+
+    // Logging pour debug
+    const status = response.status;
+    const contentType = response.headers.get('content-type') || '';
+    const contentLength = response.headers.get('content-length') || '';
+    
+    console.log('📡 Réponse n8n:', {
+      status,
+      contentType,
+      contentLength,
+      statusText: response.statusText
+    });
+
+    // Vérification du statut HTTP
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${status}: ${response.statusText}`);
+    }
+
+    // Vérification des conditions pour parser JSON
+    const shouldParseJson = status !== 204 && 
+                           contentLength !== '0' && 
+                           contentType.includes('application/json');
+
+    if (!shouldParseJson) {
+      console.warn('⚠️ Réponse vide ou non-JSON détectée:', {
+        status,
+        contentType,
+        contentLength
+      });
+      throw new Error('EMPTY_BODY');
+    }
+
+    // Parse JSON seulement si les conditions sont remplies
     try {
-      // Vérifier si la réponse a du contenu
-      const contentLength = response.headers.get('content-length');
-      const contentType = response.headers.get('content-type') || '';
-      
-      // Si pas de contenu ou content-length = 0
-      if (contentLength === '0' || !contentType.includes('application/json')) {
-        console.warn('⚠️ Réponse vide ou non-JSON du serveur:', {
-          status: response.status,
-          contentType,
-          contentLength
-        });
-        return {
-          success: false,
-          error: 'empty_response'
-        };
-      }
-
-      const text = await response.text();
-      
-      // Vérifier si le texte est vide
-      if (!text || text.trim().length === 0) {
-        console.warn('⚠️ Corps de réponse vide du serveur');
-        return {
-          success: false,
-          error: 'empty_body'
-        };
-      }
-
-      // Tenter de parser le JSON
-      const data = JSON.parse(text);
-      return {
-        success: true,
-        data
-      };
-      
-    } catch (jsonError) {
-      console.error('❌ Erreur parsing JSON:', jsonError);
-      console.error('❌ Réponse brute:', await response.text().catch(() => 'Impossible de lire la réponse'));
-      
-      return {
-        success: false,
-        error: 'invalid_json'
-      };
+      const data = await response.json();
+      console.log('✅ Données JSON reçues:', data);
+      return data;
+    } catch (parseError) {
+      console.error('❌ Erreur parsing JSON:', parseError);
+      throw new Error('INVALID_JSON');
     }
   };
 
@@ -77,126 +96,47 @@ export default function UploadPage() {
     
     setShowRetryBanner(false);
     setMsg(null);
+    setSuccessMsg(null);
     
     // Relancer l'upload avec les mêmes données
-    await performUpload(lastUploadData.file, lastUploadData.requestId, lastUploadData.formData);
+    await onUpload(lastUploadData.file, lastUploadData.requestId, lastUploadData.userId);
   };
 
-  // Fonction principale d'upload (extraite pour permettre le retry)
-  const performUpload = async (uploadFile: File, requestId: string, formData: FormData) => {
+  // Fonction principale d'upload
+  const onUpload = async (uploadFile: File, requestId: string, userId: string) => {
     try {
       setLoading(true);
+      setMsg(null);
+      setSuccessMsg(null);
+      setShowRetryBanner(false);
       
-      console.log('🚀 Envoi vers N8N:', N8N_UPLOAD_URL);
-      console.log('📁 Fichier:', { name: uploadFile.name, size: uploadFile.size, type: uploadFile.type });
+      // Envoi vers n8n
+      const data = await sendToN8N(uploadFile, requestId, userId);
       
-      const response = await fetch(N8N_UPLOAD_URL, {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: { 
-          'Accept': 'application/json'
-          // Ne pas fixer Content-Type avec FormData
-        },
-        body: formData,
-      });
-      
-      console.log('📡 Statut réponse N8N:', response.status, response.statusText);
-      
-      if (!response.ok) {
-        throw new Error(`Upload échoué (${response.status}): ${response.statusText}`);
-      }
-      
-      // Utiliser le parser JSON sécurisé
-      const parseResult = await safeJsonParse(response);
-      
-      if (!parseResult.success) {
-        // Afficher le banner de retry pour les erreurs JSON
-        setShowRetryBanner(true);
-        setLastUploadData({ file: uploadFile, requestId, formData });
-        
-        if (parseResult.error === 'empty_response' || parseResult.error === 'empty_body') {
-          throw new Error('Le serveur n\'a pas renvoyé de données. Cela peut indiquer un problème de traitement.');
-        } else {
-          throw new Error('Le serveur a renvoyé une réponse malformée.');
-        }
-      }
-      
-      const data = parseResult.data;
-      console.log('📡 Réponse N8N:', data);
-      
-      if (!data.ok) {
-        throw new Error(data.message || 'Réponse OCR invalide');
-      }
-      
-      // Stockage en sessionStorage et traitement OCR
-      const payload = data.payload || {};
-      
-      // 🔧 CORRECTION: Vérifier que N8N retourne le même requestId
-      const returnedRequestId = payload.requestId || data.requestId;
-      if (returnedRequestId && returnedRequestId !== requestId) {
-        console.warn('⚠️ RequestId différent retourné par N8N:', {
-          sent: requestId,
-          received: returnedRequestId
-        });
-        // FORCER l'utilisation du requestId original pour maintenir la cohérence
-        payload.requestId = requestId;
-        console.log('🔧 RequestId corrigé dans payload:', requestId);
-      } else {
-        console.log('✅ RequestId cohérent entre envoi et réception:', requestId);
-      }
-      
-      sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
-      sessionStorage.setItem('sessionId', payload.sessionId || '');
-      
-      console.log('✅ Données OCR reçues:', {
-        requestId,
-        sessionId: payload.sessionId,
-        documentType: payload.documentType,
-        hasExtractedData: !!payload.extractedData
-      });
-      
-      // 2) Enregistrer le résultat OCR côté DB (lié à l'upload créé)
-      console.log('💾 Sauvegarde résultat OCR...');
-      const { error: ocrError } = await supabase.rpc('rpc_upsert_ocr_result', {
-        p_request_id: requestId,
-        p_document_type: payload.documentType || 'AT_NORMALE',
-        p_extracted_fields: payload.extractedData || {},
-        p_validation_fields: payload.validationFields || {},
-        p_contextual_questions: payload.contextualQuestions || [],
-        p_ocr_confidence: payload.ocr_confidence ?? null
-      });
-      
-      if (ocrError) {
-        console.error('❌ Erreur sauvegarde OCR:', ocrError);
-        // Ne pas bloquer le processus, juste logger
-        console.warn('⚠️ Continuant malgré l\'erreur OCR...');
-      } else {
-        console.log('✅ Résultat OCR sauvegardé en base');
-      }
-      
-      // Redirection vers next (fourni par n8n)
-      if (data.next) {
-        console.log('🔄 Redirection vers:', data.next);
-        // Ajouter le requestId dans l'URL de redirection
-        const redirectUrl = new URL(data.next, window.location.origin);
-        redirectUrl.searchParams.set('rid', requestId);
-        console.log('🔄 Redirection avec requestId:', redirectUrl.href);
-        window.location.href = redirectUrl.href;
-      } else {
-        // Fallback si pas de next
-        nav(`/validation?rid=${requestId}`);
-      }
+      // Afficher le message de succès
+      setSuccessMsg('Document envoyé. Traitement en cours.');
+      console.log('✅ Upload réussi:', data);
       
     } catch (error: any) {
       console.error('❌ Erreur upload:', error);
-      setMsg(error?.message || 'Erreur de connexion au serveur');
+      
+      // Sauvegarder les données pour retry
+      setLastUploadData({ file: uploadFile, requestId, userId });
+      
+      // Gestion des messages d'erreur spécifiques
+      if (error.message === 'EMPTY_BODY') {
+        setMsg('⚠️ Le serveur n\'a pas renvoyé de données. Cliquez sur « Réessayer l\'envoi ». Si le problème persiste, contactez le support.');
+        setShowRetryBanner(true);
+      } else {
+        setMsg(`Erreur d'envoi : ${error.message}`);
+        setShowRetryBanner(true);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const onSend = async () => {
+  const handleSend = async () => {
     if (!file) {
       setMsg('Veuillez sélectionner un fichier PDF');
       return;
@@ -209,32 +149,27 @@ export default function UploadPage() {
     }
     
     setMsg(null);
+    setSuccessMsg(null);
     setShowRetryBanner(false);
     
     try {
-      // 🔧 SEUL ENDROIT DE GÉNÉRATION DE REQUEST_ID
+      // Génération du request ID
       let requestId = sessionStorage.getItem('current_request_id');
       if (!requestId) {
         requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         sessionStorage.setItem('current_request_id', requestId);
-        console.log('🆕 NOUVEAU REQUEST_ID GÉNÉRÉ (UPLOAD):', requestId);
+        console.log('🆕 Nouveau REQUEST_ID généré:', requestId);
       } else {
-        console.log('♻️ REQUEST_ID EXISTANT RÉUTILISÉ (UPLOAD):', requestId);
+        console.log('♻️ REQUEST_ID existant réutilisé:', requestId);
       }
-      
-      console.log('REQUEST_ID DEBUGGING:', {
-        source: 'upload',
-        requestId: requestId,
-        timestamp: Date.now()
-      });
-      
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
 
-      console.log('🔐 Session utilisateur:', { userId: session.user.id, requestId });
+      const userId = session.user.id;
+      console.log('🔐 Session utilisateur:', { userId, requestId });
 
-      // 1) Créer/mettre à jour la ligne uploads côté DB
+      // Créer l'upload en base de données
       console.log('📝 Création upload en base...');
       const { error: uploadError } = await supabase.rpc('rpc_create_upload', {
         p_request_id: requestId,
@@ -251,19 +186,8 @@ export default function UploadPage() {
       
       console.log('✅ Upload créé en base avec requestId:', requestId);
       
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('requestId', requestId);
-      fd.append('timestamp', new Date().toISOString());
-      fd.append('filename', file.name);
-      fd.append('filesize', file.size.toString());
-      fd.append('filetype', file.type || 'application/pdf');
-      
-      // Sauvegarder les données pour retry éventuel
-      setLastUploadData({ file, requestId, formData: fd });
-      
       // Lancer l'upload
-      await performUpload(file, requestId, fd);
+      await onUpload(file, requestId, userId);
       
     } catch (error: any) {
       console.error('❌ Erreur préparation upload:', error);
@@ -308,13 +232,8 @@ export default function UploadPage() {
                       <AlertCircle className="h-5 w-5 text-amber-400" />
                     </div>
                     <div className="ml-3 flex-1">
-                      <p className="text-sm font-medium text-amber-800">
-                        ⚠️ Le serveur n'a pas répondu correctement.
-                      </p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Veuillez réessayer l'envoi du document.<br />
-                        Si le problème persiste, contactez le support.
-                      </p>
+                      <p className="text-sm font-medium text-amber-800">Erreur de communication</p>
+                      <p className="text-sm text-amber-700 mt-1">Une erreur s'est produite lors de l'envoi.</p>
                       <div className="mt-3 flex gap-2">
                         <button
                           onClick={handleRetry}
@@ -322,7 +241,7 @@ export default function UploadPage() {
                           className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
                         >
                           <RefreshCw className="w-4 h-4" />
-                          Réessayer
+                          Réessayer l'envoi
                         </button>
                         <button
                           onClick={() => setShowRetryBanner(false)}
@@ -332,6 +251,20 @@ export default function UploadPage() {
                           Fermer
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Message de succès */}
+              {successMsg && (
+                <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <FileText className="h-5 w-5 text-green-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">{successMsg}</p>
                     </div>
                   </div>
                 </div>
@@ -386,14 +319,14 @@ export default function UploadPage() {
                 
                 {/* Upload Button */}
                 <button
-                  onClick={onSend}
+                  onClick={handleSend}
                   disabled={loading || !file || (file && file.size > 40 * 1024 * 1024)}
                   className="w-full bg-brand-accent hover:bg-opacity-90 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Analyse en cours...
+                      Envoi en cours...
                     </>
                   ) : (
                     <>
