@@ -8,6 +8,7 @@ import UploadPage from './pages/Upload';
 import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
 import ValidationPageNew from './pages/ValidationPageNew';
+import ValidationPageFullDB from './pages/ValidationPageFullDB';
 import LoginPage from './pages/Login';
 import './utils/debugUtils';
 
@@ -399,6 +400,7 @@ function App() {
       <Route path="/response" element={<WebhookResponsePage />} />
       <Route path="/validation" element={<ValidationPage />} />
       <Route path="/validation-new" element={<ValidationPageNew />} />
+      <Route path="/validation-full" element={<ValidationPageFullDB />} />
     </Routes>
   );
 }
