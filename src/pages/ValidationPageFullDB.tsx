@@ -600,7 +600,12 @@ export default function ValidationPageFullDB() {
                 
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-gray-600">
-                    Progression : {Object.values(fieldChecks).filter(Boolean).length}/{columns.length}
+                    {(() => {
+                      const validatedFieldsCount = Object.values(fieldChecks).filter(Boolean).length;
+                      const totalFields = columns.length;
+                      const percent = totalFields > 0 ? Math.round((validatedFieldsCount / totalFields) * 100) : 0;
+                      return `${percent}% complété (${validatedFieldsCount}/${totalFields} champs)`;
+                    })()}
                   </div>
                   <div className="w-24 bg-gray-200 rounded-full h-2">
                     <div 
