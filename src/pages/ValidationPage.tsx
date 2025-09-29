@@ -3,9 +3,10 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
+import { getCurrentRequestId } from '../utils/requestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload } from 'lucide-react';
+import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload, RefreshCw } from 'lucide-react';
 
 interface ExtractedData {
   [key: string]: any;
@@ -88,46 +89,82 @@ export default function ValidationPage() {
   const [contextualErrors, setContextualErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // Récupération des données depuis URL et sessionStorage
-    const rid = searchParams.get('rid') || '';
+    // Récupération du requestId depuis state, URL params ou localStorage
+    const stateRequestId = window.history.state?.requestId;
+    const urlRequestId = searchParams.get('requestId') || searchParams.get('rid') || '';
+    const storedRequestId = getCurrentRequestId();
+    const isManual = searchParams.get('manual') === 'true' || window.history.state?.manual === true;
     
-    // 🔧 AUCUNE GÉNÉRATION - RÉCUPÉRATION UNIQUEMENT
-    const finalRequestId = sessionStorage.getItem('current_request_id') || rid || 'error_no_request_id';
+    const finalRequestId = stateRequestId || urlRequestId || storedRequestId || 'error_no_request_id';
     
     console.log('🔍 VALIDATION PAGE - REQUEST_ID DEBUGGING:', {
       source: 'validation_load',
       requestId: finalRequestId,
-      ridFromUrl: rid,
+      stateRequestId,
+      urlRequestId,
+      storedRequestId,
+      isManual,
       timestamp: Date.now(),
-      sessionStorageKeys: Object.keys(sessionStorage),
-      hasOcrPayload: !!sessionStorage.getItem('ocr_payload')
+      sessionStorageKeys: Object.keys(sessionStorage)
     });
     
     const storedSessionId = sessionStorage.getItem('sessionId') || '';
-    const storedPayload = sessionStorage.getItem('ocr_payload');
+    
+    // Récupération du payload depuis le nouveau format
+    const payloadKey = `validation:payload:${finalRequestId}`;
+    const storedPayload = sessionStorage.getItem(payloadKey) || sessionStorage.getItem('ocr_payload');
     
     console.log('🔍 VALIDATION PAGE - Session Storage:', {
       hasStoredPayload: !!storedPayload,
       storedSessionId,
-      payloadLength: storedPayload?.length || 0
+      payloadLength: storedPayload?.length || 0,
+      payloadKey,
+      isManual
     });
     
     setRequestId(finalRequestId);
     setSessionId(storedSessionId);
     
+    // Définir un objet EMPTY avec les mêmes clés que le formulaire
+    const EMPTY_PAYLOAD = {
+      extractedData: {
+        employeur: {},
+        victime: {},
+        accident: {},
+        maladie: {},
+        interim: {},
+        temoin: {},
+        tiers: {}
+      },
+      validationFields: {},
+      contextualQuestions: [],
+      completionStats: {
+        completionRate: 0,
+        totalFields: 0,
+        completedFields: 0,
+        missingFields: []
+      },
+      documentType: null,
+      requestId: finalRequestId
+    };
+    
     if (storedPayload) {
       try {
-        const payload = JSON.parse(storedPayload);
+        const rawPayload = JSON.parse(storedPayload);
+        
+        // Si payload vide ou invalide, utiliser EMPTY_PAYLOAD
+        const payload = (rawPayload && Object.keys(rawPayload).length > 0) ? rawPayload : EMPTY_PAYLOAD;
         
         console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
           hasExtractedData: !!payload.extractedData,
           hasValidationFields: !!payload.validationFields,
           hasContextualQuestions: !!payload.contextualQuestions,
           documentType: payload.documentType,
-          requestIdInPayload: payload.requestId
+          requestIdInPayload: payload.requestId,
+          isEmpty: Object.keys(rawPayload || {}).length === 0
         });
         
-        // 🔧 VÉRIFICATION COHÉRENCE (PAS DE GÉNÉRATION)
+        // Vérification cohérence requestId
         if (payload.requestId && payload.requestId !== finalRequestId) {
           console.warn('⚠️ REQUEST_ID INCOHÉRENT DANS PAYLOAD:', {
             payloadRequestId: payload.requestId,
@@ -139,6 +176,11 @@ export default function ValidationPage() {
         }
         
         setOcrPayload(payload);
+        
+        // Afficher bannière si mode manuel ou payload vide
+        if (isManual || Object.keys(rawPayload || {}).length === 0) {
+          setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
+        }
         
         // Extraction des données
         if (payload.extractedData) {
@@ -171,7 +213,9 @@ export default function ValidationPage() {
         console.error('❌ VALIDATION PAGE - Erreur parsing OCR payload:', error, {
           rawPayload: storedPayload?.substring(0, 200) + '...'
         });
-        setMsg('Erreur lors du chargement des données OCR');
+        // En cas d'erreur de parsing, utiliser EMPTY_PAYLOAD
+        setOcrPayload(EMPTY_PAYLOAD);
+        setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
       }
     } else {
       console.error('❌ VALIDATION PAGE - Aucune donnée OCR trouvée:', {
@@ -179,7 +223,9 @@ export default function ValidationPage() {
         sessionStorageKeys: Object.keys(sessionStorage),
         currentUrl: window.location.href
       });
-      setMsg('Aucune donnée OCR trouvée. Veuillez recommencer l\'upload.');
+      // Aucun payload trouvé, utiliser EMPTY_PAYLOAD
+      setOcrPayload(EMPTY_PAYLOAD);
+      setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
     }
   }, [searchParams]);
 
@@ -487,15 +533,24 @@ export default function ValidationPage() {
                   Données manquantes
                 </h1>
                 <p className="text-gray-600 font-body mb-6">
-                  Aucune donnée OCR trouvée. Veuillez recommencer l'upload de votre document.
+                  Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.
                 </p>
-                <button
-                  onClick={() => navigate('/upload')}
-                  className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2 mx-auto"
-                >
-                  <Upload className="w-5 h-5" />
-                  Revenir à l'upload
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => navigate('/upload')}
+                    className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                    Réessayer l'envoi
+                  </button>
+                  <button
+                    onClick={() => navigate('/upload')}
+                    className="border-2 border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
+                  >
+                    <Upload className="w-5 h-5" />
+                    Revenir à l'upload
+                  </button>
+                </div>
               </div>
             </div>
           </main>
@@ -532,6 +587,33 @@ export default function ValidationPage() {
                 <ArrowLeft className="w-4 h-4" />
                 Retour à l'upload
               </button>
+              
+              {/* Bannière données manquantes */}
+              {(searchParams.get('manual') === 'true' || window.history.state?.manual === true || 
+                !extractedData || Object.keys(extractedData).length === 0) && (
+                <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                  <div className="flex flex-col gap-2">
+                    <strong className="text-amber-800 font-medium">Données manquantes</strong>
+                    <span className="text-amber-700">Aucune donnée OCR trouvée. Veuillez compléter le formulaire.</span>
+                    <div className="flex gap-2 mt-2">
+                      <button 
+                        onClick={() => navigate('/upload')}
+                        className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Réessayer l'envoi
+                      </button>
+                      <button 
+                        onClick={() => navigate('/upload')}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Revenir à l'upload
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="text-center">
                 <div className="w-16 h-16 bg-brand-accent bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">

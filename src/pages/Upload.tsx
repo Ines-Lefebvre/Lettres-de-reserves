@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
-import { newRequestId } from '../utils/requestId';
+import { newRequestId, setRequestId } from '../utils/requestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucide-react';
@@ -23,7 +23,7 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const hasNavigatedRef = useRef(false);
   
   const [uploading, setUploading] = useState(false);
@@ -37,7 +37,7 @@ export default function UploadPage() {
   function safeNavigateOnce(path: string, state?: any) {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    nav(path, { state, replace: false });
+    navigate(path, { state, replace: false });
   }
 
   function storeRequestId(id: string) {
@@ -61,6 +61,16 @@ export default function UploadPage() {
     if (requestId) u.searchParams.set("requestId", requestId);
     if (manual) u.searchParams.set("manual", "true");
     return u.pathname + u.search;
+  }
+
+  // Stockage payload pour validation
+  function storeValidationPayload(requestId: string, payload: any) {
+    try {
+      sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(payload || {}));
+      console.log('💾 Payload stocké pour validation:', { requestId, hasPayload: !!payload });
+    } catch (e) {
+      console.warn('⚠️ Erreur stockage payload:', e);
+    }
   }
 
   // Fonction d'envoi vers n8n avec gestion robuste des erreurs
@@ -143,6 +153,11 @@ export default function UploadPage() {
   function handleManual() {
     const requestId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
     const url = buildFallbackURL("/validation", requestId, true);
+    
+    // Stocker payload vide pour validation manuelle
+    storeValidationPayload(requestId, {});
+    setRequestId(requestId);
+    
     safeNavigateOnce(url, {
       requestId,
       manual: true,
@@ -189,22 +204,54 @@ export default function UploadPage() {
         return; // aucun retry automatique
       }
 
-      // ✅ Navigation nominale après succès
-      const target = (data?.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
+      // ✅ Succès exploitable : payload présent et requestId
       const finalReqId = data?.requestId || requestId;
+      const hasValidPayload = data?.payload && typeof data.payload === 'object';
+      
+      if (hasValidPayload) {
+        // Succès : stocker payload et naviguer vers validation préremplie
+        storeValidationPayload(finalReqId, data.payload);
+        setRequestId(finalReqId);
+        
+        const target = (data?.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
+        
+        // Afficher le message de succès
+        setSuccessMsg('Document envoyé. Traitement en cours.');
+        console.log('✅ Upload réussi avec payload:', data);
+        
+        safeNavigateOnce(target, {
+          requestId: finalReqId,
+          from: "upload",
+          manual: false,
+          fileName,
+          fileSize
+        });
+      } else {
+        // Échec OCR : payload manquant, naviguer vers validation manuelle
+        console.warn('⚠️ Succès HTTP mais payload manquant/invalide');
+        storeValidationPayload(finalReqId, {});
+        setRequestId(finalReqId);
+        
+        const manualUrl = `/validation?requestId=${encodeURIComponent(finalReqId)}&manual=true`;
+        
+        safeNavigateOnce(manualUrl, {
+          requestId: finalReqId,
+          manual: true,
+          reason: 'OCR_FAILED',
+          from: "upload",
+          fileName,
+          fileSize
+        });
+      }
 
-      // Afficher le message de succès
-      setSuccessMsg('Document envoyé. Traitement en cours.');
-      console.log('✅ Upload réussi:', data);
-
-      safeNavigateOnce(target, {
-        requestId: finalReqId,
-        from: "upload",
-        manual: false,
-        fileName,
-        fileSize
-      });
     } catch {
+      // Échec réseau/parsing : naviguer vers validation manuelle
+      console.error('❌ Erreur upload:', e);
+      const fallbackReqId = requestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+      
+      storeValidationPayload(fallbackReqId, {});
+      setRequestId(fallbackReqId);
+      
       setUploadError({
         code: "NETWORK_ERROR",
         message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
@@ -245,6 +292,9 @@ export default function UploadPage() {
 
       setLastRequestId(requestId);
       storeRequestId(requestId);
+
+      // Stocker le requestId dans les utils
+      setRequestId(requestId);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
