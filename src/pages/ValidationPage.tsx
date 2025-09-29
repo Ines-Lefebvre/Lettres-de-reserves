@@ -68,6 +68,7 @@ export default function ValidationPage() {
   const [activeTab, setActiveTab] = useState<string>('employeur');
   const [validatedData, setValidatedData] = useState<Record<string, any>>({});
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [isManualMode, setIsManualMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
