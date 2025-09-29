@@ -81,16 +81,42 @@ export default function UploadPage() {
     const reqId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
     setLastRequestId(reqId);
 
-    // construit FormData (conserve ton URL/headers actuels)
+    // construit FormData pour N8N
     const form = new FormData();
     form.append("requestId", reqId);
-    form.append("file", uploadFile); // IMPORTANT: clé "file"
+    form.append("file", uploadFile);
+    form.append("filename", uploadFile.name);
+    form.append("filesize", uploadFile.size.toString());
+    form.append("timestamp", new Date().toISOString());
+    
+    // Ajouter un token d'authentification basique
+    form.append("token", `jwt_${Date.now()}_${Math.random().toString(36).slice(2,8)}`);
+    form.append("idempotencyKey", `idem_${Date.now()}_${Math.random().toString(36).slice(2,8)}`);
+
+    console.log('🚀 Envoi vers N8N:', {
+      url: N8N_UPLOAD_URL,
+      requestId: reqId,
+      filename: uploadFile.name,
+      filesize: uploadFile.size
+    });
 
     let res: Response;
     try {
-      res = await fetch(N8N_UPLOAD_URL, { method: "POST", body: form });
+      res = await fetch(N8N_UPLOAD_URL, { 
+        method: "POST", 
+        body: form,
+        mode: 'cors'
+      });
+      
+      console.log('📡 Réponse N8N:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries())
+      });
+      
     } catch {
       // Échec réseau
+      console.error('❌ Erreur réseau vers N8N');
       if (retryCount === 0) {
         setUploadError("RETRY_CHOICE"); // affiche la bannière avec 2 boutons
         setUploading(false);
@@ -108,6 +134,7 @@ export default function UploadPage() {
 
     // HTTP non-2xx
     if (!res.ok) {
+      console.error('❌ Erreur HTTP N8N:', res.status, res.statusText);
       if (retryCount === 0) {
         setUploadError("RETRY_CHOICE");
         setUploading(false);
@@ -124,8 +151,11 @@ export default function UploadPage() {
 
     // Parse / validation de la réponse
     const data = await parseN8nResponse(res);
+    
+    console.log('📋 Données reçues de N8N:', data);
 
     if (!isSuccess(data)) {
+      console.error('❌ Réponse N8N invalide:', data);
       if (retryCount === 0) {
         setUploadError("RETRY_CHOICE");
         setUploading(false);
@@ -141,6 +171,7 @@ export default function UploadPage() {
     }
 
     // SUCCÈS : stocke et navigue
+    console.log('✅ Succès N8N, navigation vers validation');
     setPayloadInSession(data.requestId!, data.payload);
     const target = (data.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
     safeNavigateOnce(target, { requestId: data.requestId, manual: false });
