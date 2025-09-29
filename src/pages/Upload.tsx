@@ -21,7 +21,7 @@ export default function UploadPage() {
   const nav = useNavigate();
   
   // URL fixe du webhook N8N
-  const N8N_UPLOAD_URL = 'https://n8n.srv833062.hstgr.cloud/webhook/validation-created';
+  const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
 
   // Fonction d'envoi vers n8n avec gestion robuste des erreurs
   const sendToN8N = async (file: File, requestId: string, userId: string): Promise<any> => {
