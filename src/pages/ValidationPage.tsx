@@ -588,33 +588,6 @@ export default function ValidationPage() {
                 Retour à l'upload
               </button>
               
-              {/* Bannière données manquantes */}
-              {(searchParams.get('manual') === 'true' || window.history.state?.manual === true || 
-                !extractedData || Object.keys(extractedData).length === 0) && (
-                <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
-                  <div className="flex flex-col gap-2">
-                    <strong className="text-amber-800 font-medium">Données manquantes</strong>
-                    <span className="text-amber-700">Aucune donnée OCR trouvée. Veuillez compléter le formulaire.</span>
-                    <div className="flex gap-2 mt-2">
-                      <button 
-                        onClick={() => navigate('/upload')}
-                        className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Réessayer l'envoi
-                      </button>
-                      <button 
-                        onClick={() => navigate('/upload')}
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Revenir à l'upload
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
               <div className="text-center">
                 <div className="w-16 h-16 bg-brand-accent bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText className="w-8 h-8 text-brand-accent" />
