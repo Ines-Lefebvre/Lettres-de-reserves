@@ -31,6 +31,9 @@ export default function UploadPage() {
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const [lastFileMeta, setLastFileMeta] = useState<{ name?: string|null; size?: number|null }>({});
   
+  // Compteur de tentatives pour redirection auto après 2ème échec
+  const [attemptCount, setAttemptCount] = useState(0);
+  
   // URL fixe du webhook N8N
   const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
 
@@ -172,6 +175,10 @@ export default function UploadPage() {
   const onUpload = async (uploadFile: File, requestId: string, userId: string) => {
     setUploading(true);
     setUploadError(null);
+    
+    // Incrémenter le compteur de tentatives
+    const currentAttempt = attemptCount + 1;
+    setAttemptCount(currentAttempt);
 
     // Mémorise la meta fichier pour le fallback
     const fileName = uploadFile?.name ?? null;
@@ -201,6 +208,14 @@ export default function UploadPage() {
           code: data?.error || "BACKEND_ERROR",
           message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
         });
+        
+        // Si c'est la 2ème tentative, rediriger automatiquement
+        if (currentAttempt >= 2) {
+          console.log('🔄 2ème échec détecté, redirection automatique vers validation manuelle');
+          setTimeout(() => {
+            handleManual();
+          }, 1500); // Délai pour que l'utilisateur voie le message
+        }
         return; // aucun retry automatique
       }
 
@@ -256,6 +271,14 @@ export default function UploadPage() {
         code: "NETWORK_ERROR",
         message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
       });
+      
+      // Si c'est la 2ème tentative, rediriger automatiquement
+      if (currentAttempt >= 2) {
+        console.log('🔄 2ème échec réseau détecté, redirection automatique vers validation manuelle');
+        setTimeout(() => {
+          handleManual();
+        }, 1500); // Délai pour que l'utilisateur voie le message
+      }
     } finally {
       setUploading(false);
     }
@@ -278,6 +301,9 @@ export default function UploadPage() {
     setMsg(null);
     setSuccessMsg(null);
     setUploadError(null);
+    
+    // Reset du compteur de tentatives pour un nouvel envoi
+    setAttemptCount(0);
     
     try {
       // Conserve ou crée un requestId pour tracer y compris en fallback
@@ -364,14 +390,19 @@ export default function UploadPage() {
                     <strong className="text-amber-800 font-medium">Erreur de communication</strong>
                     <span className="text-amber-700">Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel.</span>
                     <small className="opacity-80 text-amber-600">Votre fichier reste sélectionné et vos informations sont préservées.</small>
+                    {attemptCount >= 2 && (
+                      <small className="text-amber-800 font-medium">
+                        Redirection automatique vers le formulaire manuel dans quelques secondes...
+                      </small>
+                    )}
                     <div className="flex gap-2 mt-2">
                       <button 
                         onClick={handleRetry} 
-                        disabled={uploading} 
+                        disabled={uploading || attemptCount >= 2} 
                         className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
                       >
                         <RefreshCw className="w-4 h-4" />
-                        Réessayer l'envoi
+                        {attemptCount >= 2 ? 'Redirection...' : 'Réessayer l\'envoi'}
                       </button>
                       <button 
                         onClick={handleManual} 
