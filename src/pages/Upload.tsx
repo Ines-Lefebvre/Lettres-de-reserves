@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
@@ -6,6 +6,16 @@ import { newRequestId } from '../utils/requestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucide-react';
+
+type N8nUploadResponse = {
+  ok?: boolean;
+  requestId?: string;
+  next?: { url?: string; [k: string]: any };
+  payload?: any;
+  statusCode?: number;
+  headers?: Record<string,string>;
+  [k: string]: any;
+};
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -19,9 +29,31 @@ export default function UploadPage() {
     userId: string;
   } | null>(null);
   const nav = useNavigate();
+  const hasNavigatedRef = useRef(false);
   
   // URL fixe du webhook N8N
   const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
+
+  function safeNavigateOnce(path: string, state?: any) {
+    if (hasNavigatedRef.current) return;
+    hasNavigatedRef.current = true;
+    nav(path, { state, replace: false });
+  }
+
+  async function parseN8nResponse(res: Response): Promise<N8nUploadResponse> {
+    const contentType = res.headers.get("content-type") || "";
+    const isJson = contentType.includes("application/json");
+    try {
+      const data = isJson ? await res.json() : await res.text();
+      if (typeof data === "string") {
+        // cas rare: backend renvoie du texte JSON-prefixé
+        try { return JSON.parse(data) as N8nUploadResponse; } catch { return { ok: res.ok, statusCode: res.status } }
+      }
+      return data as N8nUploadResponse;
+    } catch {
+      return { ok: res.ok, statusCode: res.status };
+    }
+  }
 
   // Fonction d'envoi vers n8n avec gestion robuste des erreurs
   const sendToN8N = async (file: File, requestId: string, userId: string): Promise<any> => {
@@ -111,11 +143,31 @@ export default function UploadPage() {
       setShowRetryBanner(false);
       
       // Envoi vers n8n
-      const data = await sendToN8N(uploadFile, requestId, userId);
+      const res = await sendToN8N(uploadFile, requestId, userId);
+      const data = await parseN8nResponse(res);
       
       // Afficher le message de succès
       setSuccessMsg('Document envoyé. Traitement en cours.');
       console.log('✅ Upload réussi:', data);
+      
+      // NOTE: Navigation post-upload restaurée.
+      // Ne pas retirer l'appel à safeNavigateOnce sans raison métier explicite.
+      
+      // Déterminer la cible de navigation
+      const target =
+        (data?.next && typeof data.next.url === "string" && data.next.url) ||
+        "/validation";
+
+      const finalRequestId = data?.requestId || requestId;
+
+      // Persistance facultative pour récupération ultérieure
+      try { localStorage.setItem("lastRequestId", finalRequestId); } catch {}
+
+      // **NAVIGATION**
+      safeNavigateOnce(target, {
+        requestId: finalRequestId,
+        from: "upload"
+      });
       
     } catch (error: any) {
       console.error('❌ Erreur upload:', error);
@@ -140,6 +192,8 @@ export default function UploadPage() {
     if (!file) {
       setMsg('Veuillez sélectionner un fichier PDF');
       return;
+    // Reset navigation guard pour permettre une nouvelle navigation
+    hasNavigatedRef.current = false;
     }
     
     // Contrôle taille fichier ≤ 40 MB
@@ -148,6 +202,8 @@ export default function UploadPage() {
       return;
     }
     
+    // Reset navigation guard pour un nouvel upload
+    hasNavigatedRef.current = false;
     setMsg(null);
     setSuccessMsg(null);
     setShowRetryBanner(false);
