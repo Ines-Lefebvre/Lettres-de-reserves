@@ -10,10 +10,10 @@ import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucid
 type N8nUploadResponse = {
   ok?: boolean;
   requestId?: string;
-  next?: { url?: string; [k: string]: any };
+  next?: { url?: string };
   payload?: any;
   statusCode?: number;
-  headers?: Record<string,string>;
+  error?: string;
   [k: string]: any;
 };
 
@@ -23,16 +23,15 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   
-  const navigate = useNavigate();
+  const nav = useNavigate();
   const hasNavigatedRef = useRef(false);
   
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<{ code: string; message: string } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);               // 0 = première tentative, 1 = après "Réessayer"
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
-  const [lastFileMeta, setLastFileMeta] = useState<{ name?: string|null; size?: number|null }>({});
+  const [lastFileRef, setLastFileRef] = useState<File | null>(null); // garde le fichier sélectionné
   
-  // Compteur de tentatives pour redirection auto après 2ème échec
-  const [attemptCount, setAttemptCount] = useState(0);
+  const [uploading, setUploading] = useState(false);
   
   // URL fixe du webhook N8N
   const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
@@ -40,249 +39,127 @@ export default function UploadPage() {
   function safeNavigateOnce(path: string, state?: any) {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    navigate(path, { state, replace: false });
+    nav(path, { state, replace: false });
+  }
+
+  function setPayloadInSession(requestId: string, payload: any) {
+    try { sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(payload ?? {})); } catch {}
+  }
+
+  async function parseN8nResponse(res: Response): Promise<N8nUploadResponse | null> {
+    const ct = res.headers.get("content-type") || "";
+    const isJson = ct.includes("application/json");
+    try {
+      const raw = isJson ? await res.json() : await res.text();
+      if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return null; } }
+      return raw as N8nUploadResponse;
+    } catch { return null; }
+  }
+
+  function isSuccess(d: N8nUploadResponse | null): d is N8nUploadResponse {
+    return !!(d && d.ok === true && typeof d.requestId === "string" && d.requestId && d.payload && typeof d.payload === "object");
   }
 
   function storeRequestId(id: string) {
     try { localStorage.setItem("lastRequestId", id); } catch {}
   }
 
-  async function parseN8nResponse(res: Response): Promise<N8nUploadResponse> {
-    const ct = res.headers.get("content-type") || "";
-    const isJson = ct.includes("application/json");
-    try {
-      const data = isJson ? await res.json() : await res.text();
-      if (typeof data === "string") { try { return JSON.parse(data); } catch { return { ok: res.ok, statusCode: res.status, error: "INVALID_JSON" }; } }
-      return data as N8nUploadResponse;
-    } catch {
-      return { ok: res.ok, statusCode: res.status, error: "INVALID_JSON" };
-    }
-  }
-
-  function buildFallbackURL(base = "/validation", requestId?: string, manual = true) {
-    const u = new URL(base, window.location.origin);
-    if (requestId) u.searchParams.set("requestId", requestId);
-    if (manual) u.searchParams.set("manual", "true");
-    return u.pathname + u.search;
-  }
-
-  // Stockage payload pour validation
-  function storeValidationPayload(requestId: string, payload: any) {
-    try {
-      sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(payload || {}));
-      console.log('💾 Payload stocké pour validation:', { requestId, hasPayload: !!payload });
-    } catch (e) {
-      console.warn('⚠️ Erreur stockage payload:', e);
-    }
-  }
-
-  // Fonction d'envoi vers n8n avec gestion robuste des erreurs
-  const sendToN8N = async (file: File, requestId: string, userId: string): Promise<any> => {
-    console.log('🚀 Envoi vers n8n:', {
-      url: N8N_UPLOAD_URL,
-      fileName: file.name,
-      fileSize: file.size,
-      requestId,
-      userId
-    });
-
-    // Préparation du FormData
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('request_id', requestId);
-    formData.append('user_id', userId);
-
-    // Envoi de la requête
-    const response = await fetch(N8N_UPLOAD_URL, {
-      method: 'POST',
-      mode: 'cors',
-      credentials: 'omit',
-      body: formData
-      // Ne pas définir Content-Type manuellement avec FormData
-    });
-
-    // Logging pour debug
-    const status = response.status;
-    const contentType = response.headers.get('content-type') || '';
-    const contentLength = response.headers.get('content-length') || '';
-    
-    console.log('📡 Réponse n8n:', {
-      status,
-      contentType,
-      contentLength,
-      statusText: response.statusText
-    });
-
-    // Vérification du statut HTTP
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${status}: ${response.statusText}`);
-    }
-
-    // Vérification des conditions pour parser JSON
-    const shouldParseJson = status !== 204 && 
-                           contentLength !== '0' && 
-                           contentType.includes('application/json');
-
-    if (!shouldParseJson) {
-      console.warn('⚠️ Réponse vide ou non-JSON détectée:', {
-        status,
-        contentType,
-        contentLength
-      });
-      throw new Error('EMPTY_BODY');
-    }
-
-    // Parse JSON seulement si les conditions sont remplies
-    try {
-      const data = await response.json();
-      console.log('✅ Données JSON reçues:', data);
-      return data;
-    } catch (parseError) {
-      console.error('❌ Erreur parsing JSON:', parseError);
-      throw new Error('INVALID_JSON');
-    }
-  };
-
-  // Retry manuel
-  async function handleRetry() {
-    if (uploading || !file) return;
+  // Handler d'envoi principal
+  async function onUpload() {
     setUploadError(null);
-    // Reset navigation guard pour permettre une nouvelle navigation
-    hasNavigatedRef.current = false;
-    // Relance le même handler d'upload avec le même fichier déjà sélectionné
-    await handleSend();
-  }
-
-  function handleManual() {
-    const requestId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    const url = buildFallbackURL("/validation", requestId, true);
-    
-    // Stocker payload vide pour validation manuelle
-    storeValidationPayload(requestId, {});
-    setRequestId(requestId);
-    
-    safeNavigateOnce(url, {
-      requestId,
-      manual: true,
-      reason: uploadError?.code || "UPLOAD_FAILED",
-      from: "upload",
-      fileName: lastFileMeta.name ?? null,
-      fileSize: lastFileMeta.size ?? null
-    });
-  }
-
-  // Fonction principale d'upload
-  const onUpload = async (uploadFile: File, requestId: string, userId: string) => {
     setUploading(true);
-    setUploadError(null);
-    
-    // Incrémenter le compteur de tentatives
-    const currentAttempt = attemptCount + 1;
-    setAttemptCount(currentAttempt);
 
-    // Mémorise la meta fichier pour le fallback
-    const fileName = uploadFile?.name ?? null;
-    const fileSize = uploadFile?.size ?? null;
-    setLastFileMeta({ name: fileName, size: fileSize });
-
-    try {
-      // ⚠️ Conserve l'URL n8n de production existante
-      const form = new FormData();
-      form.append("request_id", requestId);
-      form.append("user_id", userId);
-      if (uploadFile) form.append("file", uploadFile); // champ "file" obligatoire pour $binary.file
-
-      const res = await fetch(N8N_UPLOAD_URL, { method: "POST", body: form });
-
-      if (!res.ok) {
-        setUploadError({
-          code: `HTTP_${res.status}`,
-          message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
-        });
-        return; // aucun retry automatique
-      }
-
-      const data = await parseN8nResponse(res);
-      if (!data?.ok) {
-        setUploadError({
-          code: data?.error || "BACKEND_ERROR",
-          message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
-        });
-        
-        // Si c'est la 2ème tentative, rediriger automatiquement
-        if (currentAttempt >= 2) {
-          console.log('🔄 2ème échec détecté, redirection automatique vers validation manuelle');
-          setTimeout(() => {
-            handleManual();
-          }, 1500); // Délai pour que l'utilisateur voie le message
-        }
-        return; // aucun retry automatique
-      }
-
-      // ✅ Succès exploitable : payload présent et requestId
-      const finalReqId = data?.requestId || requestId;
-      const hasValidPayload = data?.payload && typeof data.payload === 'object';
-      
-      if (hasValidPayload) {
-        // Succès : stocker payload et naviguer vers validation préremplie
-        storeValidationPayload(finalReqId, data.payload);
-        setRequestId(finalReqId);
-        
-        const target = (data?.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
-        
-        // Afficher le message de succès
-        setSuccessMsg('Document envoyé. Traitement en cours.');
-        console.log('✅ Upload réussi avec payload:', data);
-        
-        safeNavigateOnce(target, {
-          requestId: finalReqId,
-          from: "upload",
-          manual: false,
-          fileName,
-          fileSize
-        });
-      } else {
-        // Échec OCR : payload manquant, naviguer vers validation manuelle
-        console.warn('⚠️ Succès HTTP mais payload manquant/invalide');
-        storeValidationPayload(finalReqId, {});
-        setRequestId(finalReqId);
-        
-        const manualUrl = `/validation?requestId=${encodeURIComponent(finalReqId)}&manual=true`;
-        
-        safeNavigateOnce(manualUrl, {
-          requestId: finalReqId,
-          manual: true,
-          reason: 'OCR_FAILED',
-          from: "upload",
-          fileName,
-          fileSize
-        });
-      }
-
-    } catch {
-      // Échec réseau/parsing : naviguer vers validation manuelle
-      console.error('❌ Erreur upload:', e);
-      const fallbackReqId = requestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-      
-      storeValidationPayload(fallbackReqId, {});
-      setRequestId(fallbackReqId);
-      
-      setUploadError({
-        code: "NETWORK_ERROR",
-        message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
-      });
-      
-      // Si c'est la 2ème tentative, rediriger automatiquement
-      if (currentAttempt >= 2) {
-        console.log('🔄 2ème échec réseau détecté, redirection automatique vers validation manuelle');
-        setTimeout(() => {
-          handleManual();
-        }, 1500); // Délai pour que l'utilisateur voie le message
-      }
-    } finally {
+    // garde la sélection
+    const uploadFile = lastFileRef ?? file;
+    if (!uploadFile) { 
+      setUploadError("Aucun fichier sélectionné."); 
       setUploading(false);
+      return; 
     }
-  };
+
+    // fixe ou réutilise un requestId
+    const reqId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    setLastRequestId(reqId);
+
+    // construit FormData (conserve ton URL/headers actuels)
+    const form = new FormData();
+    form.append("requestId", reqId);
+    form.append("file", uploadFile); // IMPORTANT: clé "file"
+
+    let res: Response;
+    try {
+      res = await fetch(N8N_UPLOAD_URL, { method: "POST", body: form });
+    } catch {
+      // Échec réseau
+      if (retryCount === 0) {
+        setUploadError("RETRY_CHOICE"); // affiche la bannière avec 2 boutons
+        setUploading(false);
+        return;
+      } else {
+        // 2e échec -> redirection auto en manuel
+        setPayloadInSession(reqId, {}); // stocke payload vide
+        safeNavigateOnce(`/validation?requestId=${encodeURIComponent(reqId)}&manual=true`, {
+          requestId: reqId, manual: true, reason: "NETWORK_ERROR"
+        });
+        setUploading(false);
+        return;
+      }
+    }
+
+    // HTTP non-2xx
+    if (!res.ok) {
+      if (retryCount === 0) {
+        setUploadError("RETRY_CHOICE");
+        setUploading(false);
+        return;
+      } else {
+        setPayloadInSession(reqId, {});
+        safeNavigateOnce(`/validation?requestId=${encodeURIComponent(reqId)}&manual=true`, {
+          requestId: reqId, manual: true, reason: `HTTP_${res.status}`
+        });
+        setUploading(false);
+        return;
+      }
+    }
+
+    // Parse / validation de la réponse
+    const data = await parseN8nResponse(res);
+
+    if (!isSuccess(data)) {
+      if (retryCount === 0) {
+        setUploadError("RETRY_CHOICE");
+        setUploading(false);
+        return;
+      } else {
+        setPayloadInSession(reqId, {});
+        safeNavigateOnce(`/validation?requestId=${encodeURIComponent(reqId)}&manual=true`, {
+          requestId: reqId, manual: true, reason: data?.error || "INVALID_JSON_OR_NO_PAYLOAD"
+        });
+        setUploading(false);
+        return;
+      }
+    }
+
+    // SUCCÈS : stocke et navigue
+    setPayloadInSession(data.requestId!, data.payload);
+    const target = (data.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
+    safeNavigateOnce(target, { requestId: data.requestId, manual: false });
+    setUploading(false);
+  }
+
+  // Handlers des boutons
+  async function handleRetryClick() {
+    if (retryCount === 0) setRetryCount(1);
+    await onUpload(); // relance avec le même fichier et le même requestId
+  }
+
+  function handleManualClick() {
+    const reqId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    setPayloadInSession(reqId, {}); // payload vide
+    safeNavigateOnce(`/validation?requestId=${encodeURIComponent(reqId)}&manual=true`, {
+      requestId: reqId, manual: true, reason: "USER_MANUAL_CHOICE"
+    });
+  }
 
   const handleSend = async () => {
     if (!file) {
@@ -303,7 +180,7 @@ export default function UploadPage() {
     setUploadError(null);
     
     // Reset du compteur de tentatives pour un nouvel envoi
-    setAttemptCount(0);
+    setRetryCount(0);
     
     try {
       // Conserve ou crée un requestId pour tracer y compris en fallback
@@ -346,7 +223,7 @@ export default function UploadPage() {
       console.log('✅ Upload créé en base avec requestId:', requestId);
       
       // Lancer l'upload
-      await onUpload(file, requestId, userId);
+      await onUpload();
       
     } catch (error: any) {
       console.error('❌ Erreur préparation upload:', error);
@@ -384,32 +261,15 @@ export default function UploadPage() {
               </div>
               
               {/* Bannière d'erreur professionnelle avec CTA */}
-              {uploadError && (
+              {uploadError === "RETRY_CHOICE" && (
                 <div role="alert" className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
                   <div className="flex flex-col gap-2">
-                    <strong className="text-amber-800 font-medium">Erreur de communication</strong>
+                    <strong className="text-amber-800 font-medium">Données manquantes</strong>
                     <span className="text-amber-700">Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel.</span>
                     <small className="opacity-80 text-amber-600">Votre fichier reste sélectionné et vos informations sont préservées.</small>
-                    {attemptCount >= 2 && (
-                      <small className="text-amber-800 font-medium">
-                        Redirection automatique vers le formulaire manuel dans quelques secondes...
-                      </small>
-                    )}
                     <div className="flex gap-2 mt-2">
-                      <button 
-                        onClick={handleRetry} 
-                        disabled={uploading || attemptCount >= 2} 
-                        className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        {attemptCount >= 2 ? 'Redirection...' : 'Réessayer l\'envoi'}
-                      </button>
-                      <button 
-                        onClick={handleManual} 
-                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300"
-                      >
-                        Continuer en mode manuel
-                      </button>
+                      <button onClick={handleRetryClick} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300">Réessayer l'envoi</button>
+                      <button onClick={handleManualClick} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300">Continuer en mode manuel</button>
                     </div>
                   </div>
                 </div>
@@ -444,7 +304,7 @@ export default function UploadPage() {
                       id="file-upload"
                       type="file"
                       accept="application/pdf"
-                      onChange={e => setFile(e.target.files?.[0] ?? null)}
+                      onChange={e => { const selectedFile = e.target.files?.[0] ?? null; setFile(selectedFile); setLastFileRef(selectedFile); }}
                       className="hidden"
                     />
                     <label
