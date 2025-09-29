@@ -21,15 +21,15 @@ export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showRetryBanner, setShowRetryBanner] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [lastUploadData, setLastUploadData] = useState<{
-    file: File;
-    requestId: string;
-    userId: string;
-  } | null>(null);
+  
   const nav = useNavigate();
   const hasNavigatedRef = useRef(false);
+  
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<{ code: string; message: string } | null>(null);
+  const [lastRequestId, setLastRequestId] = useState<string | null>(null);
+  const [lastFileMeta, setLastFileMeta] = useState<{ name?: string|null; size?: number|null }>({});
   
   // URL fixe du webhook N8N
   const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
@@ -40,19 +40,27 @@ export default function UploadPage() {
     nav(path, { state, replace: false });
   }
 
+  function storeRequestId(id: string) {
+    try { localStorage.setItem("lastRequestId", id); } catch {}
+  }
+
   async function parseN8nResponse(res: Response): Promise<N8nUploadResponse> {
-    const contentType = res.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
+    const ct = res.headers.get("content-type") || "";
+    const isJson = ct.includes("application/json");
     try {
       const data = isJson ? await res.json() : await res.text();
-      if (typeof data === "string") {
-        // cas rare: backend renvoie du texte JSON-prefixé
-        try { return JSON.parse(data) as N8nUploadResponse; } catch { return { ok: res.ok, statusCode: res.status } }
-      }
+      if (typeof data === "string") { try { return JSON.parse(data); } catch { return { ok: res.ok, statusCode: res.status, error: "INVALID_JSON" }; } }
       return data as N8nUploadResponse;
     } catch {
-      return { ok: res.ok, statusCode: res.status };
+      return { ok: res.ok, statusCode: res.status, error: "INVALID_JSON" };
     }
+  }
+
+  function buildFallbackURL(base = "/validation", requestId?: string, manual = true) {
+    const u = new URL(base, window.location.origin);
+    if (requestId) u.searchParams.set("requestId", requestId);
+    if (manual) u.searchParams.set("manual", "true");
+    return u.pathname + u.search;
   }
 
   // Fonction d'envoi vers n8n avec gestion robuste des erreurs
@@ -122,69 +130,87 @@ export default function UploadPage() {
     }
   };
 
-  // Fonction de retry
-  const handleRetry = async () => {
-    if (!lastUploadData) return;
-    
-    setShowRetryBanner(false);
-    setMsg(null);
-    setSuccessMsg(null);
-    
-    // Relancer l'upload avec les mêmes données
-    await onUpload(lastUploadData.file, lastUploadData.requestId, lastUploadData.userId);
-  };
+  // Retry manuel
+  async function handleRetry() {
+    if (uploading || !file) return;
+    setUploadError(null);
+    // Reset navigation guard pour permettre une nouvelle navigation
+    hasNavigatedRef.current = false;
+    // Relance le même handler d'upload avec le même fichier déjà sélectionné
+    await handleSend();
+  }
+
+  function handleManual() {
+    const requestId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    const url = buildFallbackURL("/validation", requestId, true);
+    safeNavigateOnce(url, {
+      requestId,
+      manual: true,
+      reason: uploadError?.code || "UPLOAD_FAILED",
+      from: "upload",
+      fileName: lastFileMeta.name ?? null,
+      fileSize: lastFileMeta.size ?? null
+    });
+  }
 
   // Fonction principale d'upload
   const onUpload = async (uploadFile: File, requestId: string, userId: string) => {
+    setUploading(true);
+    setUploadError(null);
+
+    // Mémorise la meta fichier pour le fallback
+    const fileName = uploadFile?.name ?? null;
+    const fileSize = uploadFile?.size ?? null;
+    setLastFileMeta({ name: fileName, size: fileSize });
+
     try {
-      setLoading(true);
-      setMsg(null);
-      setSuccessMsg(null);
-      setShowRetryBanner(false);
-      
-      // Envoi vers n8n
-      const res = await sendToN8N(uploadFile, requestId, userId);
+      // ⚠️ Conserve l'URL n8n de production existante
+      const form = new FormData();
+      form.append("request_id", requestId);
+      form.append("user_id", userId);
+      if (uploadFile) form.append("file", uploadFile); // champ "file" obligatoire pour $binary.file
+
+      const res = await fetch(N8N_UPLOAD_URL, { method: "POST", body: form });
+
+      if (!res.ok) {
+        setUploadError({
+          code: `HTTP_${res.status}`,
+          message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
+        });
+        return; // aucun retry automatique
+      }
+
       const data = await parseN8nResponse(res);
-      
+      if (!data?.ok) {
+        setUploadError({
+          code: data?.error || "BACKEND_ERROR",
+          message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
+        });
+        return; // aucun retry automatique
+      }
+
+      // ✅ Navigation nominale après succès
+      const target = (data?.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
+      const finalReqId = data?.requestId || requestId;
+
       // Afficher le message de succès
       setSuccessMsg('Document envoyé. Traitement en cours.');
       console.log('✅ Upload réussi:', data);
-      
-      // NOTE: Navigation post-upload restaurée.
-      // Ne pas retirer l'appel à safeNavigateOnce sans raison métier explicite.
-      
-      // Déterminer la cible de navigation
-      const target =
-        (data?.next && typeof data.next.url === "string" && data.next.url) ||
-        "/validation";
 
-      const finalRequestId = data?.requestId || requestId;
-
-      // Persistance facultative pour récupération ultérieure
-      try { localStorage.setItem("lastRequestId", finalRequestId); } catch {}
-
-      // **NAVIGATION**
       safeNavigateOnce(target, {
-        requestId: finalRequestId,
-        from: "upload"
+        requestId: finalReqId,
+        from: "upload",
+        manual: false,
+        fileName,
+        fileSize
       });
-      
-    } catch (error: any) {
-      console.error('❌ Erreur upload:', error);
-      
-      // Sauvegarder les données pour retry
-      setLastUploadData({ file: uploadFile, requestId, userId });
-      
-      // Gestion des messages d'erreur spécifiques
-      if (error.message === 'EMPTY_BODY') {
-        setMsg('⚠️ Le serveur n\'a pas renvoyé de données. Cliquez sur « Réessayer l\'envoi ». Si le problème persiste, contactez le support.');
-        setShowRetryBanner(true);
-      } else {
-        setMsg(`Erreur d'envoi : ${error.message}`);
-        setShowRetryBanner(true);
-      }
+    } catch {
+      setUploadError({
+        code: "NETWORK_ERROR",
+        message: "Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel."
+      });
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -192,8 +218,6 @@ export default function UploadPage() {
     if (!file) {
       setMsg('Veuillez sélectionner un fichier PDF');
       return;
-    // Reset navigation guard pour permettre une nouvelle navigation
-    hasNavigatedRef.current = false;
     }
     
     // Contrôle taille fichier ≤ 40 MB
@@ -206,11 +230,11 @@ export default function UploadPage() {
     hasNavigatedRef.current = false;
     setMsg(null);
     setSuccessMsg(null);
-    setShowRetryBanner(false);
+    setUploadError(null);
     
     try {
-      // Génération du request ID
-      let requestId = sessionStorage.getItem('current_request_id');
+      // Conserve ou crée un requestId pour tracer y compris en fallback
+      let requestId = lastRequestId || sessionStorage.getItem('current_request_id');
       if (!requestId) {
         requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         sessionStorage.setItem('current_request_id', requestId);
@@ -218,6 +242,9 @@ export default function UploadPage() {
       } else {
         console.log('♻️ REQUEST_ID existant réutilisé:', requestId);
       }
+
+      setLastRequestId(requestId);
+      storeRequestId(requestId);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
@@ -248,7 +275,7 @@ export default function UploadPage() {
     } catch (error: any) {
       console.error('❌ Erreur préparation upload:', error);
       setMsg(error?.message || 'Erreur de préparation de l\'upload');
-      setLoading(false);
+      setUploading(false);
     }
   };
 
@@ -280,33 +307,28 @@ export default function UploadPage() {
                 </p>
               </div>
               
-              {/* Banner de retry pour erreurs JSON */}
-              {showRetryBanner && (
-                <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <AlertCircle className="h-5 w-5 text-amber-400" />
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <p className="text-sm font-medium text-amber-800">Erreur de communication</p>
-                      <p className="text-sm text-amber-700 mt-1">Une erreur s'est produite lors de l'envoi.</p>
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={handleRetry}
-                          disabled={loading}
-                          className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                          Réessayer l'envoi
-                        </button>
-                        <button
-                          onClick={() => setShowRetryBanner(false)}
-                          className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                        >
-                          <X className="w-4 h-4" />
-                          Fermer
-                        </button>
-                      </div>
+              {/* Bannière d'erreur professionnelle avec CTA */}
+              {uploadError && (
+                <div role="alert" className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+                  <div className="flex flex-col gap-2">
+                    <strong className="text-amber-800 font-medium">Erreur de communication</strong>
+                    <span className="text-amber-700">Plusieurs utilisateurs envoient leurs documents en même temps. Vous pouvez réessayer ou passer au remplissage manuel.</span>
+                    <small className="opacity-80 text-amber-600">Votre fichier reste sélectionné et vos informations sont préservées.</small>
+                    <div className="flex gap-2 mt-2">
+                      <button 
+                        onClick={handleRetry} 
+                        disabled={uploading} 
+                        className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Réessayer l'envoi
+                      </button>
+                      <button 
+                        onClick={handleManual} 
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all duration-300"
+                      >
+                        Continuer en mode manuel
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -376,10 +398,10 @@ export default function UploadPage() {
                 {/* Upload Button */}
                 <button
                   onClick={handleSend}
-                  disabled={loading || !file || (file && file.size > 40 * 1024 * 1024)}
+                  disabled={uploading || !file || (file && file.size > 40 * 1024 * 1024)}
                   className="w-full bg-brand-accent hover:bg-opacity-90 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? (
+                  {uploading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       Envoi en cours...
