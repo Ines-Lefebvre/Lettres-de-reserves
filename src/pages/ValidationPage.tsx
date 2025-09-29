@@ -480,7 +480,10 @@ export default function ValidationPage() {
 
   // Rendu des sections de données
   const renderDataSection = (sectionKey: string, sectionData: any) => {
-    if (!sectionData || typeof sectionData !== 'object') return null;
+    // Si pas de données OCR, afficher des champs vides pour saisie manuelle
+    if (!sectionData || typeof sectionData !== 'object' || Object.keys(sectionData).length === 0) {
+      return renderManualFormSection(sectionKey);
+    }
     
     return (
       <div className="space-y-4">
@@ -508,6 +511,122 @@ export default function ValidationPage() {
                   <AlertCircle className="w-3 h-3" />
                   À vérifier
                 </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Rendu des champs de formulaire manuel par section
+  const renderManualFormSection = (sectionKey: string) => {
+    const fieldsBySection: Record<string, Array<{key: string, label: string, required?: boolean, type?: string}>> = {
+      employeur: [
+        { key: 'nom_raison_sociale', label: 'Nom / Raison sociale', required: true },
+        { key: 'siret', label: 'SIRET', required: true },
+        { key: 'adresse', label: 'Adresse complète', required: true },
+        { key: 'telephone', label: 'Téléphone' },
+        { key: 'email', label: 'Email' },
+        { key: 'activite', label: 'Activité principale' },
+        { key: 'effectif', label: 'Effectif', type: 'number' }
+      ],
+      victime: [
+        { key: 'nom', label: 'Nom', required: true },
+        { key: 'prenom', label: 'Prénom', required: true },
+        { key: 'date_naissance', label: 'Date de naissance', type: 'date' },
+        { key: 'numero_secu', label: 'Numéro de sécurité sociale', required: true },
+        { key: 'adresse', label: 'Adresse' },
+        { key: 'poste', label: 'Poste occupé' },
+        { key: 'anciennete', label: 'Ancienneté' },
+        { key: 'qualification', label: 'Qualification professionnelle' }
+      ],
+      accident: [
+        { key: 'date', label: 'Date de l\'accident', type: 'date', required: true },
+        { key: 'heure', label: 'Heure de l\'accident', type: 'time', required: true },
+        { key: 'lieu', label: 'Lieu de l\'accident', required: true },
+        { key: 'description', label: 'Description des circonstances', required: true },
+        { key: 'nature_lesion', label: 'Nature de la lésion' },
+        { key: 'siege_lesion', label: 'Siège de la lésion' },
+        { key: 'temoin', label: 'Témoin(s)' },
+        { key: 'arret_travail', label: 'Arrêt de travail prescrit', type: 'select' }
+      ],
+      maladie: [
+        { key: 'date_premiere_constatation', label: 'Date de première constatation médicale', type: 'date' },
+        { key: 'nature_maladie', label: 'Nature de la maladie professionnelle' },
+        { key: 'agent_nocif', label: 'Agent nocif présumé' },
+        { key: 'duree_exposition', label: 'Durée d\'exposition' },
+        { key: 'tableau_mp', label: 'Tableau des maladies professionnelles' }
+      ],
+      interim: [
+        { key: 'entreprise_utilisatrice', label: 'Entreprise utilisatrice' },
+        { key: 'siret_utilisatrice', label: 'SIRET entreprise utilisatrice' },
+        { key: 'adresse_utilisatrice', label: 'Adresse entreprise utilisatrice' },
+        { key: 'mission', label: 'Nature de la mission' }
+      ],
+      temoin: [
+        { key: 'nom_temoin', label: 'Nom du témoin' },
+        { key: 'prenom_temoin', label: 'Prénom du témoin' },
+        { key: 'qualite_temoin', label: 'Qualité du témoin' },
+        { key: 'adresse_temoin', label: 'Adresse du témoin' }
+      ],
+      tiers: [
+        { key: 'nom_tiers', label: 'Nom du tiers responsable' },
+        { key: 'assurance_tiers', label: 'Assurance du tiers' },
+        { key: 'circonstances_tiers', label: 'Circonstances impliquant le tiers' }
+      ]
+    };
+
+    const fields = fieldsBySection[sectionKey] || [];
+    
+    if (fields.length === 0) {
+      return (
+        <div className="text-center text-gray-500 py-12">
+          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Section optionnelle</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {fields.map((field) => {
+          const fieldKey = `${sectionKey}.${field.key}`;
+          
+          return (
+            <div key={fieldKey} className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                {field.label}
+                {field.required && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              
+              {field.type === 'select' && field.key === 'arret_travail' ? (
+                <select
+                  value={validatedData[fieldKey] || ''}
+                  onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                >
+                  <option value="">Sélectionner...</option>
+                  <option value="oui">Oui</option>
+                  <option value="non">Non</option>
+                  <option value="inconnu">Inconnu</option>
+                </select>
+              ) : field.key === 'description' ? (
+                <textarea
+                  value={validatedData[fieldKey] || ''}
+                  onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                  rows={3}
+                  placeholder={`Saisir ${field.label.toLowerCase()}`}
+                />
+              ) : (
+                <input
+                  type={field.type || 'text'}
+                  value={validatedData[fieldKey] || ''}
+                  onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent"
+                  placeholder={`Saisir ${field.label.toLowerCase()}`}
+                />
               )}
             </div>
           );
