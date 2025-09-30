@@ -1256,6 +1256,8 @@ export default function ValidationPage() {
           </div>
         </main>
         
+        {import.meta.env.DEV && <ValidationTestPanel />}
+        
         <Footer />
       </div>
     </AuthGuard>
