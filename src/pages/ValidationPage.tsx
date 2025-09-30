@@ -192,14 +192,18 @@ export default function ValidationPage() {
       try {
         const rawPayload = JSON.parse(storedPayload);
         
-        // Si payload vide ou invalide, utiliser EMPTY_PAYLOAD
-        const payload = (rawPayload && Object.keys(rawPayload).length > 0) ? rawPayload : EMPTY_PAYLOAD;
+        // Extraction du payload imbriqué si présent
+        const extractedPayload = (rawPayload.payload && typeof rawPayload.payload === 'object') 
+          ? rawPayload.payload 
+          : rawPayload;
         
-        console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
-          hasExtractedData: !!payload.extractedData,
-          hasValidationFields: !!payload.validationFields,
-          hasContextualQuestions: !!payload.contextualQuestions,
-          documentType: payload.documentType,
+        const finalPayload = (extractedPayload && Object.keys(extractedPayload).length > 0) 
+          ? extractedPayload 
+          : EMPTY_PAYLOAD;
+        
+        if (rawPayload.payload && typeof rawPayload.payload === 'object') {
+          console.log('Extraction du payload imbriqué détecté');
+        }
           
           // Extraction du payload imbriqué si présent
           let payload = rawPayload;
@@ -220,11 +224,10 @@ export default function ValidationPage() {
             employeurData: payload.extractedData?.employeur
           });
           payload.requestId = finalRequestId;
-          sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
-          console.log('🔧 PAYLOAD CORRIGÉ AVEC REQUEST_ID:', finalRequestId);
+          finalPayload,
+          employeurData: finalPayload.extractedData?.employeur
         }
         
-        setOcrPayload(payload);
         
         // Afficher bannière si mode manuel ou payload vide
         if (isManual || Object.keys(rawPayload || {}).length === 0) {
