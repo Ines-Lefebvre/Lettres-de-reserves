@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ChevronUp, Upload, Menu, X } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LazyVideo from './components/LazyVideo';
@@ -398,7 +399,11 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/upload" element={<UploadPage />} />
       <Route path="/response" element={<WebhookResponsePage />} />
-      <Route path="/validation" element={<ValidationPage />} />
+      <Route path="/validation" element={
+        <ErrorBoundary>
+          <ValidationPage />
+        </ErrorBoundary>
+      } />
       <Route path="/validation-new" element={<ValidationPageNew />} />
       <Route path="/validation-full" element={<ValidationPageFullDB />} />
     </Routes>
