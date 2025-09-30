@@ -8,7 +8,12 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload, RefreshCw } from 'lucide-react';
 
+// Types stricts pour éviter les any
 interface ExtractedData {
+  employeur?: Record<string, any>;
+  victime?: Record<string, any>;
+  accident?: Record<string, any>;
+  maladie?: Record<string, any>;
   [key: string]: any;
 }
 
@@ -49,6 +54,22 @@ interface ContextualForm {
   q8_free_comment: string;
 }
 
+interface ValidationPayload {
+  success?: boolean;
+  sessionId?: string;
+  documentType?: string;
+  extractedData?: ExtractedData;
+  validationFields?: Record<string, any>;
+  contextualQuestions?: any[];
+}
+
+interface N8nResponse {
+  ok: boolean;
+  requestId: string;
+  next?: string;
+  payload?: ValidationPayload;
+}
+
 export default function ValidationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -56,7 +77,7 @@ export default function ValidationPage() {
   // Données de session
   const [requestId, setRequestId] = useState<string>('');
   const [sessionId, setSessionId] = useState<string>('');
-  const [ocrPayload, setOcrPayload] = useState<any>(null);
+  const [ocrPayload, setOcrPayload] = useState<ValidationPayload | null>(null);
   
   // Données extraites
   const [extractedData, setExtractedData] = useState<ExtractedData>({});
@@ -88,7 +109,8 @@ export default function ValidationPage() {
   });
   
   const [contextualErrors, setContextualErrors] = useState<Record<string, string>>({});
-  const validatePayloadStructure = (payload: any): { isValid: boolean; errors: string[] } => {
+  
+  const validatePayloadStructure = (payload: ValidationPayload | null): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
     
     if (!payload) {
@@ -98,6 +120,20 @@ export default function ValidationPage() {
     
     if (!payload.extractedData) {
       errors.push('extractedData manquant dans le payload');
+    } else {
+      // Vérifier qu'au moins une section a des données
+      const sections = ['employeur', 'victime', 'accident', 'maladie'];
+      const hasValidData = sections.some(section => {
+        const sectionData = payload.extractedData?.[section];
+        return sectionData && 
+               typeof sectionData === 'object' && 
+               Object.keys(sectionData).length > 0 &&
+               Object.values(sectionData).some(v => v !== null && v !== undefined && v !== '');
+      });
+      
+      if (!hasValidData) {
+        errors.push('Aucune donnée valide dans extractedData');
+      }
     }
     
     if (!payload.validationFields) {
@@ -106,19 +142,6 @@ export default function ValidationPage() {
     
     if (!payload.documentType) {
       errors.push('documentType manquant dans le payload');
-    }
-    
-    // Vérifier que extractedData a au moins une section non vide
-    if (payload.extractedData) {
-      const sections = ['employeur', 'victime', 'accident', 'maladie'];
-      const hasData = sections.some(section => {
-        const data = payload.extractedData[section];
-        return data && Object.keys(data).length > 0;
-      });
-      
-      if (!hasData) {
-        errors.push('Aucune donnée extraite dans les sections principales');
-      }
     }
     
     return {
@@ -192,27 +215,24 @@ export default function ValidationPage() {
       try {
         const rawPayload = JSON.parse(storedPayload);
         
+        // Si payload vide ou invalide, utiliser EMPTY_PAYLOAD
+        let payload = (rawPayload && Object.keys(rawPayload).length > 0) ? rawPayload : EMPTY_PAYLOAD;
+        
         // Extraction du payload imbriqué si présent
-        const extractedPayload = (rawPayload.payload && typeof rawPayload.payload === 'object') 
-          ? rawPayload.payload 
-          : rawPayload;
-        
-        const finalPayload = (extractedPayload && Object.keys(extractedPayload).length > 0) 
-          ? extractedPayload 
-          : EMPTY_PAYLOAD;
-        
         if (rawPayload.payload && typeof rawPayload.payload === 'object') {
           console.log('Extraction du payload imbriqué détecté');
+          payload = rawPayload.payload;
         }
-          
-          // Extraction du payload imbriqué si présent
-          let payload = rawPayload;
-          if (rawPayload.payload && typeof rawPayload.payload === 'object') {
-            console.log('Extraction du payload imbriqué détecté');
-            payload = rawPayload.payload;
-          }
-          
-          payload = (payload && Object.keys(payload).length > 0) ? payload : EMPTY_PAYLOAD;
+        
+        payload = (payload && Object.keys(payload).length > 0) ? payload : EMPTY_PAYLOAD;
+        
+        console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
+          hasExtractedData: !!payload.extractedData,
+          hasValidationFields: !!payload.validationFields,
+          hasContextualQuestions: !!payload.contextualQuestions,
+          documentType: payload.documentType,
+          sections: payload.extractedData ? Object.keys(payload.extractedData) : [],
+          employeurData: payload.extractedData?.employeur,
           isEmpty: Object.keys(rawPayload || {}).length === 0
         });
         
@@ -224,10 +244,11 @@ export default function ValidationPage() {
             employeurData: payload.extractedData?.employeur
           });
           payload.requestId = finalRequestId;
-          finalPayload,
-          employeurData: finalPayload.extractedData?.employeur
+          sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
+          console.log('🔧 PAYLOAD CORRIGÉ AVEC REQUEST_ID:', finalRequestId);
         }
         
+        setOcrPayload(payload);
         
         // Afficher bannière si mode manuel ou payload vide
         if (isManual || Object.keys(rawPayload || {}).length === 0) {
@@ -517,6 +538,14 @@ export default function ValidationPage() {
           window.location.href = data.next;
         } else {
           navigate('/response?status=success&message=Données validées avec succès');
+        }
+        } catch (error) {
+          console.error('❌ VALIDATION PAGE - Erreur parsing OCR payload:', error, {
+            rawPayload: storedPayload?.substring(0, 200) + '...'
+          });
+          // En cas d'erreur de parsing, utiliser EMPTY_PAYLOAD
+          setOcrPayload(EMPTY_PAYLOAD);
+          setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
         }
       } else {
         throw new Error(data.message || 'Erreur lors de la validation');
