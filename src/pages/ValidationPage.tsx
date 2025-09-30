@@ -88,6 +88,45 @@ export default function ValidationPage() {
   });
   
   const [contextualErrors, setContextualErrors] = useState<Record<string, string>>({});
+  const validatePayloadStructure = (payload: any): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+    
+    if (!payload) {
+      errors.push('Payload est null ou undefined');
+      return { isValid: false, errors };
+    }
+    
+    if (!payload.extractedData) {
+      errors.push('extractedData manquant dans le payload');
+    }
+    
+    if (!payload.validationFields) {
+      errors.push('validationFields manquant dans le payload');
+    }
+    
+    if (!payload.documentType) {
+      errors.push('documentType manquant dans le payload');
+    }
+    
+    // Vérifier que extractedData a au moins une section non vide
+    if (payload.extractedData) {
+      const sections = ['employeur', 'victime', 'accident', 'maladie'];
+      const hasData = sections.some(section => {
+        const data = payload.extractedData[section];
+        return data && Object.keys(data).length > 0;
+      });
+      
+      if (!hasData) {
+        errors.push('Aucune donnée extraite dans les sections principales');
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
 
   useEffect(() => {
     // Récupération du requestId depuis state, URL params ou localStorage
@@ -161,7 +200,15 @@ export default function ValidationPage() {
           hasValidationFields: !!payload.validationFields,
           hasContextualQuestions: !!payload.contextualQuestions,
           documentType: payload.documentType,
-          requestIdInPayload: payload.requestId,
+          
+          // Extraction du payload imbriqué si présent
+          let payload = rawPayload;
+          if (rawPayload.payload && typeof rawPayload.payload === 'object') {
+            console.log('Extraction du payload imbriqué détecté');
+            payload = rawPayload.payload;
+          }
+          
+          payload = (payload && Object.keys(payload).length > 0) ? payload : EMPTY_PAYLOAD;
           isEmpty: Object.keys(rawPayload || {}).length === 0
         });
         
@@ -169,7 +216,8 @@ export default function ValidationPage() {
         if (payload.requestId && payload.requestId !== finalRequestId) {
           console.warn('⚠️ REQUEST_ID INCOHÉRENT DANS PAYLOAD:', {
             payloadRequestId: payload.requestId,
-            finalRequestId: finalRequestId
+            sections: payload.extractedData ? Object.keys(payload.extractedData) : [],
+            employeurData: payload.extractedData?.employeur
           });
           payload.requestId = finalRequestId;
           sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
@@ -482,8 +530,23 @@ export default function ValidationPage() {
   // Rendu des sections de données
   const renderDataSection = (sectionKey: string, sectionData: any) => {
     // Si pas de données OCR, afficher des champs vides pour saisie manuelle
-    if (!sectionData || typeof sectionData !== 'object' || Object.keys(sectionData).length === 0) {
-      return renderManualFormSection(sectionKey);
+    // Vérifier si la section a des données exploitables
+    const hasData = sectionData && 
+                    typeof sectionData === 'object' && 
+                    Object.keys(sectionData).length > 0 &&
+                    Object.values(sectionData).some(v => v !== null && v !== undefined && v !== '');
+
+    if (!hasData) {
+      return (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+            <p className="text-amber-800 text-sm">
+              Aucune donnée OCR extraite pour cette section. Veuillez compléter manuellement.
+            </p>
+          </div>
+          {renderManualFormSection(sectionKey)}
+        </div>
+      );
     }
     
     return (
@@ -697,6 +760,37 @@ export default function ValidationPage() {
         <Header hasBackground={true} />
         
         <main className="min-h-screen pt-24 pb-16">
+          {/* Debug Panel - À retirer en production */}
+          {import.meta.env.DEV && (
+            <div className="container mx-auto max-w-6xl px-4 mb-4">
+              <details className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+                <summary className="cursor-pointer font-semibold text-yellow-900">
+                  Debug : Structure des données reçues
+                </summary>
+                <div className="mt-4 space-y-2 text-xs">
+                  <div>
+                    <strong>ocrPayload présent :</strong> {ocrPayload ? 'Oui' : 'Non'}
+                  </div>
+                  <div>
+                    <strong>extractedData présent :</strong> {extractedData ? 'Oui' : 'Non'}
+                  </div>
+                  <div>
+                    <strong>extractedData.employeur :</strong>
+                    <pre className="bg-white p-2 rounded mt-1 overflow-x-auto">
+                      {JSON.stringify(extractedData?.employeur || 'undefined', null, 2)}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>validationFields count :</strong> {Object.keys(validationFields).length}
+                  </div>
+                  <div>
+                    <strong>activeTab :</strong> {activeTab}
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+          
           <div className="container mx-auto max-w-6xl px-4">
             {/* Header */}
             <div className="mb-8">
