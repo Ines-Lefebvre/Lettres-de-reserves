@@ -1,4 +1,8 @@
-export const VALIDATION_ENDPOINT = import.meta.env.VITE_VALIDATION_ENDPOINT || 'https://n8n.srv833062.hstgr.cloud/webhook/validation';
+export const VALIDATION_ENDPOINT = import.meta.env.VITE_VALIDATION_ENDPOINT;
+
+if (!VALIDATION_ENDPOINT) {
+  throw new Error('VITE_VALIDATION_ENDPOINT manquant dans .env');
+}
 
 export function safeParseJson(raw: string) {
   const cleaned = raw.trim().replace(/^\s*json\s*/i, ''); // retire le préfixe "json"
