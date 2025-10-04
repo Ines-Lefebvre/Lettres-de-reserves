@@ -1,3 +1,16 @@
+/**
+ * ⚠️ ATTENTION SÉCURITÉ
+ *
+ * Ce fichier utilise VITE_VALIDATION_ENDPOINT qui est PUBLIC dans le bundle JavaScript.
+ * Toute personne peut voir cette URL en ouvrant la console développeur.
+ *
+ * Protection actuelle : Validation des paramètres uniquement
+ * TODO : Implémenter une des solutions suivantes :
+ * 1. Proxy Netlify/Vercel Functions
+ * 2. Authentification Header Auth dans n8n
+ * 3. Rate limiting côté n8n
+ */
+
 export const VALIDATION_ENDPOINT = import.meta.env.VITE_VALIDATION_ENDPOINT;
 
 if (!VALIDATION_ENDPOINT) {
