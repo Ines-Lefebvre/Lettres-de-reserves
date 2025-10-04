@@ -6,14 +6,38 @@ if (!VALIDATION_ENDPOINT) {
 
 export function safeParseJson(raw: string) {
   const cleaned = raw.trim().replace(/^\s*json\s*/i, ''); // retire le préfixe "json"
-  try { 
-    return { ok: true, data: JSON.parse(cleaned) }; 
-  } catch (e) { 
-    return { ok: false, error: String(e), raw: cleaned }; 
+  try {
+    return { ok: true, data: JSON.parse(cleaned) };
+  } catch (e) {
+    return { ok: false, error: String(e), raw: cleaned };
   }
 }
 
+export function validateQuery(query: Record<string, string | undefined>) {
+  const required = ['session_id', 'req_id'];
+  const missing = required.filter(key => !query[key]);
+
+  if (missing.length > 0) {
+    throw new Error(`Paramètres manquants : ${missing.join(', ')}`);
+  }
+
+  // Validation des IDs (empêche injection)
+  const sessionId = query.session_id || '';
+  const reqId = query.req_id || '';
+
+  if (!/^[a-zA-Z0-9-_]+$/.test(sessionId)) {
+    throw new Error('session_id invalide');
+  }
+
+  if (!/^[a-zA-Z0-9-_]+$/.test(reqId)) {
+    throw new Error('req_id invalide');
+  }
+
+  return true;
+}
+
 export async function fetchValidation(query: Record<string, string | undefined>) {
+  validateQuery(query);
   const params = new URLSearchParams(
     Object.entries(query).filter(([, v]) => v != null) as [string, string][]
   );
