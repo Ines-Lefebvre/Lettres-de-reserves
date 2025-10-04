@@ -152,17 +152,17 @@ export default function ValidationPage() {
     if (storedPayload) {
       try {
         const rawPayload = JSON.parse(storedPayload);
-        
+
         // ✅ CORRECTION : Extraire le payload imbriqué si présent
         let payload = rawPayload;
         if (rawPayload && rawPayload.payload && typeof rawPayload.payload === 'object') {
           console.log('🔧 CORRECTION : Payload imbriqué détecté - extraction');
           payload = rawPayload.payload;
         }
-        
+
         // Si payload vide ou invalide, utiliser EMPTY_PAYLOAD
         payload = (payload && Object.keys(payload).length > 0) ? payload : EMPTY_PAYLOAD;
-        
+
         console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
           hasExtractedData: !!payload.extractedData,
           hasValidationFields: !!payload.validationFields,
@@ -171,7 +171,7 @@ export default function ValidationPage() {
           requestIdInPayload: payload.requestId,
           isEmpty: Object.keys(rawPayload || {}).length === 0
         });
-        
+
         // Vérification cohérence requestId
         if (payload.requestId && payload.requestId !== finalRequestId) {
           console.warn('⚠️ REQUEST_ID INCOHÉRENT DANS PAYLOAD:', {
@@ -182,33 +182,36 @@ export default function ValidationPage() {
           sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
           console.log('🔧 PAYLOAD CORRIGÉ AVEC REQUEST_ID:', finalRequestId);
         }
-        
+
         setOcrPayload(payload);
-        
+
         // Afficher bannière si mode manuel ou payload vide
         if (isManual || Object.keys(rawPayload || {}).length === 0) {
           setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
         }
-        
+
         // Extraction des données
         if (payload.extractedData) {
           setExtractedData(payload.extractedData);
           // Initialiser validatedData avec les données extraites
           setValidatedData(flattenObject(payload.extractedData));
+        } else {
+          // Initialiser avec EMPTY_PAYLOAD.extractedData pour afficher les formulaires vides
+          setExtractedData(EMPTY_PAYLOAD.extractedData);
         }
-        
+
         if (payload.validationFields) {
           setValidationFields(payload.validationFields);
         }
-        
+
         if (payload.contextualQuestions) {
           setContextualQuestions(payload.contextualQuestions);
         }
-        
+
         if (payload.completionStats) {
           setCompletionStats(payload.completionStats);
         }
-        
+
         console.log('✅ Données OCR chargées:', {
           documentType: payload.documentType,
           hasExtractedData: !!payload.extractedData,
@@ -216,23 +219,25 @@ export default function ValidationPage() {
           questionsCount: (payload.contextualQuestions || []).length,
           requestIdInPayload: payload.requestId
         });
-        
+
       } catch (error) {
         console.error('❌ VALIDATION PAGE - Erreur parsing OCR payload:', error, {
           rawPayload: storedPayload?.substring(0, 200) + '...'
         });
         // En cas d'erreur de parsing, utiliser EMPTY_PAYLOAD
         setOcrPayload(EMPTY_PAYLOAD);
+        setExtractedData(EMPTY_PAYLOAD.extractedData);
         setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
       }
     } else {
-      console.error('❌ VALIDATION PAGE - Aucune donnée OCR trouvée:', {
+      console.log('ℹ️ VALIDATION PAGE - Aucun payload trouvé, initialisation en mode manuel:', {
         searchParams: Object.fromEntries(searchParams.entries()),
         sessionStorageKeys: Object.keys(sessionStorage),
         currentUrl: window.location.href
       });
       // Aucun payload trouvé, utiliser EMPTY_PAYLOAD
       setOcrPayload(EMPTY_PAYLOAD);
+      setExtractedData(EMPTY_PAYLOAD.extractedData);
       setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
     }
   }, [searchParams]);
@@ -586,50 +591,6 @@ export default function ValidationPage() {
     );
   };
 
-  // Si pas de données OCR, afficher CTA retour upload
-  if (!ocrPayload) {
-    return (
-      <AuthGuard>
-        <div className="min-h-screen bg-brand-white">
-          <Header hasBackground={true} />
-          
-          <main className="min-h-screen pt-24 pb-16 flex items-center justify-center">
-            <div className="container mx-auto max-w-md px-4">
-              <div className="bg-white rounded-lg shadow-xl border-2 border-brand-light p-8 text-center">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="w-8 h-8 text-red-600" />
-                </div>
-                <h1 className="font-headline text-2xl font-bold text-brand-text-dark mb-4">
-                  Données manquantes
-                </h1>
-                <p className="text-gray-600 font-body mb-6">
-                  Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  <button
-                    onClick={() => navigate('/upload')}
-                    className="bg-brand-accent hover:bg-opacity-90 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw className="w-5 h-5" />
-                    Réessayer l'envoi
-                  </button>
-                  <button
-                    onClick={() => navigate('/upload')}
-                    className="border-2 border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center justify-center gap-2"
-                  >
-                    <Upload className="w-5 h-5" />
-                    Revenir à l'upload
-                  </button>
-                </div>
-              </div>
-            </div>
-          </main>
-          
-          <Footer />
-        </div>
-      </AuthGuard>
-    );
-  }
 
   const tabs = [
     { key: 'employeur', label: 'Employeur' },
@@ -648,6 +609,14 @@ export default function ValidationPage() {
         
         <main className="min-h-screen pt-24 pb-16">
           <div className="container mx-auto max-w-6xl px-4">
+            {/* Bannière d'information si aucune donnée OCR */}
+            {msg && !success && (
+              <div className="mb-6 p-4 rounded-lg border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <p className="font-medium">{msg}</p>
+              </div>
+            )}
+
             {/* Header */}
             <div className="mb-8">
               <button
@@ -657,7 +626,7 @@ export default function ValidationPage() {
                 <ArrowLeft className="w-4 h-4" />
                 Retour à l'upload
               </button>
-              
+
               <div className="text-center">
                 <div className="w-16 h-16 bg-brand-accent bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText className="w-8 h-8 text-brand-accent" />
@@ -1076,25 +1045,15 @@ export default function ValidationPage() {
               </div>
             </div>
             
-            {/* Messages de statut */}
-            {msg && (
-              <div className={`mt-6 p-4 rounded-lg border flex items-center gap-3 ${
-                success 
-                  ? 'bg-green-50 text-green-700 border-green-200' 
-                  : 'bg-red-50 text-red-700 border-red-200'
-              }`}>
-                {success ? (
-                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                )}
+            {/* Messages de succès/erreur */}
+            {msg && success && (
+              <div className="mt-6 p-4 rounded-lg border bg-green-50 text-green-700 border-green-200 flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="font-medium">{msg}</p>
-                  {success && (
-                    <p className="text-sm mt-1 opacity-75">
-                      Redirection automatique dans quelques secondes...
-                    </p>
-                  )}
+                  <p className="text-sm mt-1 opacity-75">
+                    Redirection automatique dans quelques secondes...
+                  </p>
                 </div>
               </div>
             )}
