@@ -1,3 +1,12 @@
+/**
+ * Configuration Supabase
+ *
+ * VITE_SUPABASE_ANON_KEY est PUBLIC (normal pour Supabase client).
+ * Sécurité assurée par Row Level Security (RLS) côté Supabase.
+ *
+ * ⚠️ Vérifier que RLS est activé sur toutes les tables sensibles.
+ */
+
 import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
