@@ -58,13 +58,13 @@ export function nestedToDotObject(input: Record<string, any>): Record<string, an
 
 /**
  * Nettoie les données en supprimant les valeurs vides ou nulles
- * 
+ *
  * @param data - Données à nettoyer
  * @returns Données nettoyées
  */
 export function cleanData(data: Record<string, any>): Record<string, any> {
   const cleaned: Record<string, any> = {};
-  
+
   for (const [key, value] of Object.entries(data || {})) {
     if (value !== null && value !== undefined && value !== '') {
       if (typeof value === 'object' && !Array.isArray(value)) {
@@ -77,6 +77,57 @@ export function cleanData(data: Record<string, any>): Record<string, any> {
       }
     }
   }
-  
+
   return cleaned;
+}
+
+/**
+ * Normalise les nombres en supprimant les espaces et les virgules
+ * Gère les formats comme "3, 4, 2, 5" → "34258" ou "1 234 567" → "1234567"
+ *
+ * @param value - Valeur à normaliser (string ou number)
+ * @returns Valeur normalisée
+ *
+ * @example
+ * normalizeNumber("3, 4, 2, 5") // "34258"
+ * normalizeNumber("1 234 567") // "1234567"
+ * normalizeNumber("12345") // "12345"
+ */
+export function normalizeNumber(value: string | number): string {
+  if (typeof value === 'number') {
+    return value.toString();
+  }
+
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+
+  // Supprime tous les espaces, virgules et points (sauf le dernier point pour les décimales)
+  return value.replace(/[\s,]/g, '');
+}
+
+/**
+ * Normalise récursivement tous les champs numériques dans un objet
+ *
+ * @param data - Objet à normaliser
+ * @param numericFields - Liste des champs qui doivent être normalisés (ex: ['siret', 'nir', 'telephone'])
+ * @returns Objet avec les champs numériques normalisés
+ */
+export function normalizeNumericFields(
+  data: Record<string, any>,
+  numericFields: string[] = ['siret', 'nir', 'telephone', 'codePostal', 'numero']
+): Record<string, any> {
+  const normalized: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(data || {})) {
+    if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+      normalized[key] = normalizeNumericFields(value, numericFields);
+    } else if (numericFields.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+      normalized[key] = normalizeNumber(value);
+    } else {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
 }

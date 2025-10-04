@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { newRequestId, setRequestId } from '../utils/requestId';
+import { normalizeNumericFields } from '../utils/normalize';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucide-react';
@@ -43,7 +44,13 @@ export default function UploadPage() {
   }
 
   function setPayloadInSession(requestId: string, payload: any) {
-    try { sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(payload ?? {})); } catch {}
+    try {
+      const normalizedPayload = payload ? normalizeNumericFields(payload) : {};
+      sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(normalizedPayload));
+      console.log('💾 Payload normalisé et stocké:', normalizedPayload);
+    } catch (e) {
+      console.error('❌ Erreur stockage payload:', e);
+    }
   }
 
   async function parseN8nResponse(res: Response): Promise<N8nUploadResponse | null> {
@@ -51,8 +58,19 @@ export default function UploadPage() {
     const isJson = ct.includes("application/json");
     try {
       const raw = isJson ? await res.json() : await res.text();
-      if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return null; } }
-      return raw as N8nUploadResponse;
+
+      if (typeof raw === "string") {
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed[0] : parsed;
+        } catch {
+          return null;
+        }
+      }
+
+      // N8n renvoie un tableau avec un seul objet: [{ ok: true, requestId: "...", payload: {...} }]
+      const data = Array.isArray(raw) ? raw[0] : raw;
+      return data as N8nUploadResponse;
     } catch { return null; }
   }
 
