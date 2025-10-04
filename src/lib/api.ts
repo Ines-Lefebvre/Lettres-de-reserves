@@ -11,10 +11,11 @@
  * 3. Rate limiting côté n8n
  */
 
-export const VALIDATION_ENDPOINT = import.meta.env.VITE_VALIDATION_ENDPOINT;
+export const VALIDATION_ENDPOINT = import.meta.env.VITE_VALIDATION_ENDPOINT ||
+  'https://n8n.srv833062.hstgr.cloud/webhook/validation';
 
-if (!VALIDATION_ENDPOINT) {
-  throw new Error('VITE_VALIDATION_ENDPOINT manquant dans .env');
+if (!import.meta.env.VITE_VALIDATION_ENDPOINT) {
+  console.warn('VITE_VALIDATION_ENDPOINT manquant - utilisation du fallback');
 }
 
 export function safeParseJson(raw: string) {
