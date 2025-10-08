@@ -4,6 +4,7 @@ import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { newRequestId, setRequestId } from '../utils/requestId';
 import { normalizeNumericFields } from '../utils/normalize';
+import { storeValidationPayload, cleanOldPayloads, loadValidationPayload } from '../utils/storage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucide-react';
@@ -46,10 +47,20 @@ export default function UploadPage() {
   function setPayloadInSession(requestId: string, payload: any) {
     try {
       const normalizedPayload = payload ? normalizeNumericFields(payload) : {};
-      sessionStorage.setItem(`validation:payload:${requestId}`, JSON.stringify(normalizedPayload));
-      console.log('💾 Payload normalisé et stocké:', normalizedPayload);
+
+      const stored = storeValidationPayload(requestId, normalizedPayload);
+
+      if (!stored) {
+        console.error('❌ [Upload] Échec du stockage du payload');
+        throw new Error('Échec du stockage du payload');
+      }
+
+      console.log('💾 [Upload] Payload normalisé et stocké');
+      console.log('  📋 RequestID:', requestId);
+      console.log('  📊 Données:', normalizedPayload);
     } catch (e) {
-      console.error('❌ Erreur stockage payload:', e);
+      console.error('❌ [Upload] Erreur stockage payload:', e);
+      throw e;
     }
   }
 
@@ -189,8 +200,18 @@ export default function UploadPage() {
     }
 
     // SUCCÈS : stocke et navigue
-    console.log('✅ Succès N8N, navigation vers validation');
+    console.log('✅ [Upload] Succès N8N, stockage du payload');
     setPayloadInSession(data.requestId!, data.payload);
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const verification = loadValidationPayload(data.requestId!);
+    if (!verification) {
+      console.error('❌ [Upload] Vérification échouée après stockage');
+      throw new Error('Payload non disponible après stockage');
+    }
+
+    console.log('🚀 [Upload] Navigation vers validation');
     const target = (data.next?.url && typeof data.next.url === "string") ? data.next.url : "/validation";
     safeNavigateOnce(target, { requestId: data.requestId, manual: false });
     setUploading(false);
@@ -215,21 +236,23 @@ export default function UploadPage() {
       setMsg('Veuillez sélectionner un fichier PDF');
       return;
     }
-    
+
     // Contrôle taille fichier ≤ 40 MB
     if (file.size > 40 * 1024 * 1024) {
       setMsg('Le fichier ne doit pas dépasser 40 MB');
       return;
     }
-    
+
     // Reset navigation guard pour un nouvel upload
     hasNavigatedRef.current = false;
     setMsg(null);
     setSuccessMsg(null);
     setUploadError(null);
-    
+
     // Reset du compteur de tentatives pour un nouvel envoi
     setRetryCount(0);
+
+    cleanOldPayloads();
     
     try {
       // Conserve ou crée un requestId pour tracer y compris en fallback
