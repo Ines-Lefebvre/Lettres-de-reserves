@@ -4,6 +4,7 @@ import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
 import { getCurrentRequestId } from '../utils/requestId';
+import { loadValidationPayload } from '../utils/storage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload, RefreshCw } from 'lucide-react';
@@ -90,43 +91,39 @@ export default function ValidationPage() {
   const [contextualErrors, setContextualErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // Récupération du requestId depuis state, URL params ou localStorage
+    console.log('🎯 [Validation] Composant monté');
+
     const stateRequestId = window.history.state?.requestId;
     const urlRequestId = searchParams.get('requestId') || searchParams.get('rid') || '';
     const storedRequestId = getCurrentRequestId();
     const isManual = searchParams.get('manual') === 'true' || window.history.state?.manual === true;
-    
+
     const finalRequestId = stateRequestId || urlRequestId || storedRequestId || 'error_no_request_id';
-    
-    console.log('🔍 VALIDATION PAGE - REQUEST_ID DEBUGGING:', {
-      source: 'validation_load',
-      requestId: finalRequestId,
-      stateRequestId,
-      urlRequestId,
-      storedRequestId,
-      isManual,
-      timestamp: Date.now(),
-      sessionStorageKeys: Object.keys(sessionStorage)
-    });
-    
-    const storedSessionId = sessionStorage.getItem('sessionId') || '';
-    
-    // Récupération du payload depuis le nouveau format
-    const payloadKey = `validation:payload:${finalRequestId}`;
-    const storedPayload = sessionStorage.getItem(payloadKey) || sessionStorage.getItem('ocr_payload');
-    
-    console.log('🔍 VALIDATION PAGE - Session Storage:', {
-      hasStoredPayload: !!storedPayload,
-      storedSessionId,
-      payloadLength: storedPayload?.length || 0,
-      payloadKey,
-      isManual
-    });
-    
+
+    console.log('📋 [Validation] RequestID:', finalRequestId);
+    console.log('  🔹 Source state:', stateRequestId);
+    console.log('  🔹 Source URL:', urlRequestId);
+    console.log('  🔹 Source stored:', storedRequestId);
+    console.log('  🔹 Mode manuel:', isManual);
+
     setRequestId(finalRequestId);
+
+    const storedPayload = loadValidationPayload(finalRequestId);
+
+    if (!storedPayload) {
+      console.error('❌ [Validation] Aucun payload trouvé');
+      setMsg('Aucune donnée OCR trouvée. Veuillez recommencer l\'upload.');
+      setIsManualMode(true);
+      return;
+    }
+
+    console.log('✅ [Validation] Payload chargé avec succès');
+    console.log('  📄 Type:', storedPayload.documentType);
+    console.log('  🆔 Session:', storedPayload.sessionId);
+
+    const storedSessionId = storedPayload.sessionId || sessionStorage.getItem('sessionId') || '';
     setSessionId(storedSessionId);
     
-    // Définir un objet EMPTY avec les mêmes clés que le formulaire
     const EMPTY_PAYLOAD = {
       extractedData: {
         employeur: {},
@@ -148,98 +145,68 @@ export default function ValidationPage() {
       documentType: null,
       requestId: finalRequestId
     };
-    
-    if (storedPayload) {
-      try {
-        const rawPayload = JSON.parse(storedPayload);
 
-        // ✅ CORRECTION : Extraire le payload imbriqué si présent
-        let payload = rawPayload;
-        if (rawPayload && rawPayload.payload && typeof rawPayload.payload === 'object') {
-          console.log('🔧 CORRECTION : Payload imbriqué détecté - extraction');
-          payload = rawPayload.payload;
-        }
+    let payload = storedPayload;
 
-        // Si payload vide ou invalide, utiliser EMPTY_PAYLOAD
-        payload = (payload && Object.keys(payload).length > 0) ? payload : EMPTY_PAYLOAD;
-
-        console.log('🔍 VALIDATION PAGE - Parsed Payload:', {
-          hasExtractedData: !!payload.extractedData,
-          hasValidationFields: !!payload.validationFields,
-          hasContextualQuestions: !!payload.contextualQuestions,
-          documentType: payload.documentType,
-          requestIdInPayload: payload.requestId,
-          isEmpty: Object.keys(rawPayload || {}).length === 0
-        });
-
-        // Vérification cohérence requestId
-        if (payload.requestId && payload.requestId !== finalRequestId) {
-          console.warn('⚠️ REQUEST_ID INCOHÉRENT DANS PAYLOAD:', {
-            payloadRequestId: payload.requestId,
-            finalRequestId: finalRequestId
-          });
-          payload.requestId = finalRequestId;
-          sessionStorage.setItem('ocr_payload', JSON.stringify(payload));
-          console.log('🔧 PAYLOAD CORRIGÉ AVEC REQUEST_ID:', finalRequestId);
-        }
-
-        setOcrPayload(payload);
-
-        // Afficher bannière si mode manuel ou payload vide
-        if (isManual || Object.keys(rawPayload || {}).length === 0) {
-          setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
-        }
-
-        // Extraction des données
-        if (payload.extractedData) {
-          setExtractedData(payload.extractedData);
-          // Initialiser validatedData avec les données extraites
-          setValidatedData(flattenObject(payload.extractedData));
-        } else {
-          // Initialiser avec EMPTY_PAYLOAD.extractedData pour afficher les formulaires vides
-          setExtractedData(EMPTY_PAYLOAD.extractedData);
-        }
-
-        if (payload.validationFields) {
-          setValidationFields(payload.validationFields);
-        }
-
-        if (payload.contextualQuestions) {
-          setContextualQuestions(payload.contextualQuestions);
-        }
-
-        if (payload.completionStats) {
-          setCompletionStats(payload.completionStats);
-        }
-
-        console.log('✅ Données OCR chargées:', {
-          documentType: payload.documentType,
-          hasExtractedData: !!payload.extractedData,
-          validationFieldsCount: Object.keys(payload.validationFields || {}).length,
-          questionsCount: (payload.contextualQuestions || []).length,
-          requestIdInPayload: payload.requestId
-        });
-
-      } catch (error) {
-        console.error('❌ VALIDATION PAGE - Erreur parsing OCR payload:', error, {
-          rawPayload: storedPayload?.substring(0, 200) + '...'
-        });
-        // En cas d'erreur de parsing, utiliser EMPTY_PAYLOAD
-        setOcrPayload(EMPTY_PAYLOAD);
-        setExtractedData(EMPTY_PAYLOAD.extractedData);
-        setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
-      }
-    } else {
-      console.log('ℹ️ VALIDATION PAGE - Aucun payload trouvé, initialisation en mode manuel:', {
-        searchParams: Object.fromEntries(searchParams.entries()),
-        sessionStorageKeys: Object.keys(sessionStorage),
-        currentUrl: window.location.href
-      });
-      // Aucun payload trouvé, utiliser EMPTY_PAYLOAD
-      setOcrPayload(EMPTY_PAYLOAD);
-      setExtractedData(EMPTY_PAYLOAD.extractedData);
-      setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
+    if (storedPayload && storedPayload.payload && typeof storedPayload.payload === 'object') {
+      console.log('🔧 [Validation] Payload imbriqué détecté - extraction');
+      payload = storedPayload.payload;
     }
+
+    if (!payload || Object.keys(payload).length === 0) {
+      console.warn('⚠️ [Validation] Payload vide, utilisation EMPTY_PAYLOAD');
+      payload = EMPTY_PAYLOAD;
+    }
+
+    console.log('🔍 [Validation] Payload analysé:', {
+      hasExtractedData: !!payload.extractedData,
+      hasValidationFields: !!payload.validationFields,
+      hasContextualQuestions: !!payload.contextualQuestions,
+      documentType: payload.documentType,
+      requestIdInPayload: payload.requestId
+    });
+
+    if (payload.requestId && payload.requestId !== finalRequestId) {
+      console.warn('⚠️ [Validation] REQUEST_ID incohérent:', {
+        payloadRequestId: payload.requestId,
+        finalRequestId: finalRequestId
+      });
+      payload.requestId = finalRequestId;
+    }
+
+    setOcrPayload(payload);
+
+    if (isManual || !payload.extractedData || Object.keys(payload.extractedData).length === 0) {
+      setMsg('Aucune donnée OCR trouvée. Veuillez compléter le formulaire manuellement.');
+      setIsManualMode(true);
+    }
+
+    if (payload.extractedData) {
+      setExtractedData(payload.extractedData);
+      setValidatedData(flattenObject(payload.extractedData));
+    } else {
+      setExtractedData(EMPTY_PAYLOAD.extractedData);
+    }
+
+    if (payload.validationFields) {
+      setValidationFields(payload.validationFields);
+    }
+
+    if (payload.contextualQuestions) {
+      setContextualQuestions(payload.contextualQuestions);
+    }
+
+    if (payload.completionStats) {
+      setCompletionStats(payload.completionStats);
+    }
+
+    console.log('✅ [Validation] Données OCR chargées:', {
+      documentType: payload.documentType,
+      hasExtractedData: !!payload.extractedData,
+      validationFieldsCount: Object.keys(payload.validationFields || {}).length,
+      questionsCount: (payload.contextualQuestions || []).length
+    });
+
   }, [searchParams]);
 
   // Fonction utilitaire pour aplatir un objet nested
