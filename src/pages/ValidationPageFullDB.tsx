@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabaseClient';
+import { useRequestId } from '../hooks/useRequestId';
 import AuthGuard from '../components/AuthGuard';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -104,7 +105,10 @@ const JsonEditor: React.FC<JsonEditorProps> = ({
 export default function ValidationPageFullDB() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
+  // Utiliser le hook personnalisé pour gérer le requestId
+  const { requestId: hookRequestId } = useRequestId({ logDebug: true });
+
   // États principaux
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,8 +122,8 @@ export default function ValidationPageFullDB() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
 
-  // ID du record à valider
-  const recordId = searchParams.get('id');
+  // ID du record à valider (priorité au param 'id', sinon utiliser hookRequestId)
+  const recordId = searchParams.get('id') || hookRequestId;
 
   // Fonction pour humaniser les noms de colonnes
   const humanizeColumnName = (columnName: string): string => {
@@ -585,7 +589,7 @@ export default function ValidationPageFullDB() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h1 className="font-headline text-3xl font-bold text-brand-text-dark mb-2">
-                    Validation du dossier #{record?.id?.slice(-8) || 'N/A'}
+                    Validation du dossier #{(record?.id || hookRequestId)?.slice(-8) || 'N/A'}
                   </h1>
                   <div className="flex items-center gap-3">
                     <span className="text-gray-600 font-body">Statut :</span>
@@ -752,7 +756,8 @@ export default function ValidationPageFullDB() {
                 Informations techniques
               </summary>
               <div className="mt-2 bg-gray-50 rounded p-3 space-y-1">
-                <p><strong>ID du dossier :</strong> {record?.id}</p>
+                <p><strong>ID du dossier :</strong> {record?.id || hookRequestId}</p>
+                <p><strong>Request ID (hook) :</strong> {hookRequestId || 'Non défini'}</p>
                 <p><strong>Colonnes détectées :</strong> {columns.length}</p>
                 <p><strong>Champs cochés :</strong> {Object.values(fieldChecks).filter(Boolean).length}</p>
                 <p><strong>JSON valides :</strong> {Object.values(jsonValidities).filter(Boolean).length}/{Object.keys(jsonValidities).length}</p>
