@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
 import { dotObjectToNested } from '../utils/normalize';
-import { getCurrentRequestId } from '../utils/requestId';
 import { loadValidationPayload } from '../utils/storage';
+import { useRequestId } from '../hooks/useRequestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { CheckCircle, FileText, Save, AlertCircle, ArrowLeft, Upload, RefreshCw } from 'lucide-react';
@@ -53,9 +53,11 @@ interface ContextualForm {
 export default function ValidationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+
+  // Utiliser le hook personnalisé pour gérer le requestId
+  const { requestId: hookRequestId } = useRequestId({ logDebug: true });
+
   // Données de session
-  const [requestId, setRequestId] = useState<string>('');
   const [sessionId, setSessionId] = useState<string>('');
   const [ocrPayload, setOcrPayload] = useState<any>(null);
   
@@ -93,20 +95,13 @@ export default function ValidationPage() {
   useEffect(() => {
     console.log('🎯 [Validation] Composant monté');
 
-    const stateRequestId = window.history.state?.requestId;
-    const urlRequestId = searchParams.get('requestId') || searchParams.get('rid') || '';
-    const storedRequestId = getCurrentRequestId();
     const isManual = searchParams.get('manual') === 'true' || window.history.state?.manual === true;
 
-    const finalRequestId = stateRequestId || urlRequestId || storedRequestId || 'error_no_request_id';
+    // Utiliser le requestId du hook
+    const finalRequestId = hookRequestId || 'error_no_request_id';
 
     console.log('📋 [Validation] RequestID:', finalRequestId);
-    console.log('  🔹 Source state:', stateRequestId);
-    console.log('  🔹 Source URL:', urlRequestId);
-    console.log('  🔹 Source stored:', storedRequestId);
     console.log('  🔹 Mode manuel:', isManual);
-
-    setRequestId(finalRequestId);
 
     const storedPayload = loadValidationPayload(finalRequestId);
 
@@ -207,7 +202,7 @@ export default function ValidationPage() {
       questionsCount: (payload.contextualQuestions || []).length
     });
 
-  }, [searchParams]);
+  }, [searchParams, hookRequestId]);
 
   // Fonction utilitaire pour aplatir un objet nested
   const flattenObject = (obj: any, prefix = ''): Record<string, any> => {
@@ -329,10 +324,10 @@ export default function ValidationPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée. Reconnectez-vous.');
 
-      // 2) RÉCUPÉRATION REQUEST_ID (AUCUNE GÉNÉRATION)
-      const finalRequestId = sessionStorage.getItem('current_request_id') || '';
+      // 2) RÉCUPÉRATION REQUEST_ID depuis le hook
+      const finalRequestId = hookRequestId || '';
       const sessionId = sessionStorage.getItem('sessionId') || '';
-      
+
       if (!finalRequestId || finalRequestId === 'error_no_request_id') {
         throw new Error('Request ID introuvable ou invalide.');
       }
@@ -1030,7 +1025,7 @@ export default function ValidationPage() {
               <summary className="cursor-pointer hover:text-gray-700">Informations de debug</summary>
               <div className="mt-2 bg-gray-50 rounded p-3 space-y-1">
                 <p><strong>Session ID:</strong> {sessionId}</p>
-                <p><strong>Request ID:</strong> {requestId}</p>
+                <p><strong>Request ID:</strong> {hookRequestId}</p>
                 <p><strong>État:</strong> {saving ? 'Sauvegarde...' : success ? 'Succès' : 'Prêt'}</p>
               </div>
             </details>
