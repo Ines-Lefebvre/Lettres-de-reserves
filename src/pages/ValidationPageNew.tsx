@@ -1,36 +1,40 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchValidation, safeParseJson } from '../lib/api';
+import { useRequestId } from '../hooks/useRequestId';
 import AuthGuard from '../components/AuthGuard';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { AlertCircle, RefreshCw, CheckCircle, FileText } from 'lucide-react';
 
 export default function ValidationPageNew() {
+  // Utiliser le hook personnalisé pour gérer le requestId
+  const { requestId } = useRequestId({ logDebug: true });
+
   const [state, setState] = useState<'idle' | 'loading' | 'ok' | 'empty' | 'badjson' | 'error'>('idle');
   const [payload, setPayload] = useState<any>(null);
   const [meta, setMeta] = useState<{ status?: number, raw?: string, error?: string }>({});
   const scrolled = useRef(false);
 
-  const query = useMemo(() => {
-    if (typeof window === 'undefined') return {};
-    const u = new URL(window.location.href);
-    
-    console.log('🔍 VALIDATION NEW - URL Analysis:', {
-      href: u.href,
-      searchParams: Object.fromEntries(u.searchParams.entries()),
-      sessionStorageKeys: Object.keys(sessionStorage)
-    });
-    
-    return {
-      session_id: u.searchParams.get('session_id') || u.searchParams.get('SessionID') || undefined,
-      req_id: u.searchParams.get('req_id') || u.searchParams.get('RequestID') || undefined,
-      request_id: u.searchParams.get('request_id') || u.searchParams.get('rid') || undefined,
-    };
-  }, []);
+  // Récupérer sessionId depuis sessionStorage (si nécessaire)
+  const sessionId = sessionStorage.getItem('sessionId') || undefined;
 
   useEffect(() => {
     let mounted = true;
     async function run() {
+      // Vérifier que le requestId est disponible
+      if (!requestId) {
+        console.warn('⚠️ VALIDATION NEW - Aucun requestId disponible');
+        setState('error');
+        setMeta({ error: 'Request ID manquant. Veuillez redémarrer le processus depuis la page Upload.' });
+        return;
+      }
+
+      const query = {
+        session_id: sessionId,
+        req_id: requestId,
+        request_id: requestId,
+      };
+
       console.log('🔍 VALIDATION NEW - Starting fetch with query:', query);
       setState('loading');
       try {
@@ -76,7 +80,7 @@ export default function ValidationPageNew() {
     }
     run();
     return () => { mounted = false; };
-  }, []);
+  }, [requestId, sessionId]);
 
   useEffect(() => {
     if (!scrolled.current && (state === 'empty' || state === 'badjson' || state === 'error')) {
@@ -111,8 +115,8 @@ export default function ValidationPageNew() {
                 Récupération des données depuis le serveur de traitement
               </p>
               <div className="text-sm text-gray-500 space-y-1">
-                <p>Session: {query.session_id ?? '–'}</p>
-                <p>Requête: {(query.req_id || query.request_id) ?? '–'}</p>
+                <p>Session: {sessionId ?? '–'}</p>
+                <p>Requête: {requestId ?? '–'}</p>
               </div>
             </header>
 
@@ -262,7 +266,8 @@ export default function ValidationPageNew() {
                 <div className="mt-2 bg-gray-50 rounded p-3 text-left">
                   <p><strong>État :</strong> {state}</p>
                   <p><strong>Endpoint :</strong> {import.meta.env.VITE_VALIDATION_ENDPOINT || 'Non défini'}</p>
-                  <p><strong>Query params :</strong> {JSON.stringify(query)}</p>
+                  <p><strong>Request ID :</strong> {requestId || 'Non défini'}</p>
+                  <p><strong>Session ID :</strong> {sessionId || 'Non défini'}</p>
                   <p><strong>Meta :</strong> {JSON.stringify(meta)}</p>
                 </div>
               </details>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ChevronUp, Upload, Menu, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import RequestIdDebugPanel from './components/RequestIdDebugPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LazyVideo from './components/LazyVideo';
@@ -393,20 +394,28 @@ const HomePage: React.FC = () => {
 };
 
 function App() {
+  // Activer le panneau de debug uniquement en mode développement
+  const isDevelopment = import.meta.env.DEV;
+
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/upload" element={<UploadPage />} />
-      <Route path="/response" element={<WebhookResponsePage />} />
-      <Route path="/validation" element={
-        <ErrorBoundary>
-          <ValidationPage />
-        </ErrorBoundary>
-      } />
-      <Route path="/validation-new" element={<ValidationPageNew />} />
-      <Route path="/validation-full" element={<ValidationPageFullDB />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/upload" element={<UploadPage />} />
+        <Route path="/response" element={<WebhookResponsePage />} />
+        <Route path="/validation" element={
+          <ErrorBoundary>
+            <ValidationPage />
+          </ErrorBoundary>
+        } />
+        <Route path="/validation-new" element={<ValidationPageNew />} />
+        <Route path="/validation-full" element={<ValidationPageFullDB />} />
+      </Routes>
+
+      {/* Panneau de debug RequestId - uniquement en développement */}
+      {isDevelopment && <RequestIdDebugPanel />}
+    </>
   );
 }
 

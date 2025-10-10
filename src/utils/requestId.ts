@@ -1,5 +1,16 @@
 /**
  * Utilitaires pour la génération d'identifiants de requête
+ *
+ * @deprecated Ce fichier est deprecated depuis la v1.0.0 du hook useRequestId
+ * @see src/hooks/useRequestId.ts - Utiliser le hook React personnalisé à la place
+ *
+ * MIGRATION:
+ * - Remplacer `newRequestId()` par `generateRequestId()` du hook
+ * - Remplacer `getCurrentRequestId()` par `requestId` du hook
+ * - Remplacer `setRequestId()` par `setRequestId()` du hook
+ * - Remplacer `clearRequestId()` par `clearRequestId()` du hook
+ *
+ * Ce fichier sera supprimé dans une version future.
  */
 
 /**
