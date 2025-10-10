@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
 import { supabase } from '../utils/supabaseClient';
-import { newRequestId, setRequestId } from '../utils/requestId';
 import { normalizeNumericFields } from '../utils/normalize';
 import { storeValidationPayload, cleanOldPayloads, loadValidationPayload } from '../utils/storage';
+import { useRequestId } from '../hooks/useRequestId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Upload as UploadIcon, FileText, AlertCircle, RefreshCw, X } from 'lucide-react';
@@ -30,10 +30,12 @@ export default function UploadPage() {
   
   const [retryCount, setRetryCount] = useState(0);               // 0 = première tentative, 1 = après "Réessayer"
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const [lastFileRef, setLastFileRef] = useState<File | null>(null); // garde le fichier sélectionné
-  
+
   const [uploading, setUploading] = useState(false);
+
+  // Utiliser le hook personnalisé pour gérer le requestId
+  const { requestId: currentRequestId, setRequestId: updateRequestId, generateRequestId } = useRequestId({ logDebug: true });
   
   // URL fixe du webhook N8N
   const N8N_UPLOAD_URL = import.meta.env.VITE_N8N_UPLOAD_URL ?? 'https://n8n.srv833062.hstgr.cloud/webhook/upload';
@@ -89,10 +91,7 @@ export default function UploadPage() {
     return !!(d && d.ok === true && typeof d.requestId === "string" && d.requestId && d.payload && typeof d.payload === "object");
   }
 
-  function storeRequestId(id: string) {
-    try { localStorage.setItem("lastRequestId", id); } catch {}
-  }
-
+  
   // Handler d'envoi principal
   async function onUpload() {
     setUploadError(null);
@@ -100,15 +99,17 @@ export default function UploadPage() {
 
     // garde la sélection
     const uploadFile = lastFileRef ?? file;
-    if (!uploadFile) { 
-      setUploadError("Aucun fichier sélectionné."); 
+    if (!uploadFile) {
+      setUploadError("Aucun fichier sélectionné.");
       setUploading(false);
-      return; 
+      return;
     }
 
-    // fixe ou réutilise un requestId
-    const reqId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-    setLastRequestId(reqId);
+    // Utiliser ou générer un requestId via le hook
+    const reqId = currentRequestId || generateRequestId();
+    if (!currentRequestId) {
+      updateRequestId(reqId);
+    }
 
     // construit FormData pour N8N
     const form = new FormData();
@@ -224,7 +225,10 @@ export default function UploadPage() {
   }
 
   function handleManualClick() {
-    const reqId = lastRequestId || `req_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    const reqId = currentRequestId || generateRequestId();
+    if (!currentRequestId) {
+      updateRequestId(reqId);
+    }
     setPayloadInSession(reqId, {}); // payload vide
     safeNavigateOnce(`/validation?requestId=${encodeURIComponent(reqId)}&manual=true`, {
       requestId: reqId, manual: true, reason: "USER_MANUAL_CHOICE"
@@ -253,23 +257,16 @@ export default function UploadPage() {
     setRetryCount(0);
 
     cleanOldPayloads();
-    
+
     try {
-      // Conserve ou crée un requestId pour tracer y compris en fallback
-      let requestId = lastRequestId || sessionStorage.getItem('current_request_id');
-      if (!requestId) {
-        requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        sessionStorage.setItem('current_request_id', requestId);
+      // Utiliser ou générer un requestId via le hook
+      const requestId = currentRequestId || generateRequestId();
+      if (!currentRequestId) {
+        updateRequestId(requestId);
         console.log('🆕 Nouveau REQUEST_ID généré:', requestId);
       } else {
         console.log('♻️ REQUEST_ID existant réutilisé:', requestId);
       }
-
-      setLastRequestId(requestId);
-      storeRequestId(requestId);
-
-      // Stocker le requestId dans les utils
-      setRequestId(requestId);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('Session expirée, veuillez vous reconnecter.');
