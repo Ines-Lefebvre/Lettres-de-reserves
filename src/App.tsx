@@ -11,6 +11,7 @@ import WebhookResponsePage from './pages/WebhookResponse';
 import ValidationPage from './pages/ValidationPage';
 import ValidationPageNew from './pages/ValidationPageNew';
 import ValidationPageFullDB from './pages/ValidationPageFullDB';
+import UnifiedValidationPage from './pages/UnifiedValidationPage';
 import LoginPage from './pages/Login';
 import './utils/debugUtils';
 
@@ -404,7 +405,16 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/response" element={<WebhookResponsePage />} />
+
+        {/* Page de validation unifiée */}
         <Route path="/validation" element={
+          <ErrorBoundary>
+            <UnifiedValidationPage />
+          </ErrorBoundary>
+        } />
+
+        {/* Pages anciennes (deprecated, maintenues pour compatibilité) */}
+        <Route path="/validation-legacy" element={
           <ErrorBoundary>
             <ValidationPage />
           </ErrorBoundary>
