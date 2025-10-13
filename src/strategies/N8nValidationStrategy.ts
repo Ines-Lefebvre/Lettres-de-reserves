@@ -16,6 +16,7 @@
 
 import { ValidationStrategy } from './ValidationStrategy';
 import { fetchValidation, safeParseJson } from '../lib/api';
+import { dotObjectToNested } from '../utils/normalize';  // ✅ CORRECTIF #4
 import type {
   ExtractedData,
   ValidationResult,
@@ -34,7 +35,7 @@ export class N8nValidationStrategy extends ValidationStrategy {
   constructor(
     context: ValidationContext,
     logDebug: boolean = false,
-    timeout: number = 30000,
+    timeout: number = 60000,  // ✅ CORRECTIF #5: Défaut 60s (cohérent avec api.ts)
     retryCount: number = 3
   ) {
     super(context, logDebug);
@@ -59,66 +60,110 @@ export class N8nValidationStrategy extends ValidationStrategy {
     this.emitLifecycleEvent('load', { requestId: this.context.requestId });
     const startTime = Date.now();
 
-    try {
-      this.log('Loading data from n8n', {
-        requestId: this.context.requestId,
-        sessionId: this.context.sessionId
-      });
+    // ✅ CORRECTIF #6: Boucle de retry avec backoff exponentiel
+    let lastError: Error | null = null;
 
-      const query = {
-        request_id: this.context.requestId,
-        req_id: this.context.requestId,
-        session_id: this.context.sessionId
-      };
-
-      const response = await fetchValidation(query);
-      const duration = Date.now() - startTime;
-
-      if (!response.text || response.text.trim().length === 0) {
-        this.logError('Empty response from n8n');
-        return {
-          success: false,
-          error: 'Réponse vide depuis n8n',
-          metadata: this.createMetadata({ status: response.status, duration })
-        };
+    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
+      if (attempt > 0) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        this.log(`Retry ${attempt}/${this.retryCount} après ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
 
-      const parsed = safeParseJson(response.text);
+      try {
+        const result = await this.attemptLoad(startTime, attempt);
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        this.logError(`Tentative ${attempt + 1} échouée`, lastError.message);
 
-      if (!parsed.ok) {
-        this.logError('JSON parse failed', parsed.error);
-        return {
-          success: false,
-          error: `JSON invalide: ${parsed.error}`,
-          metadata: this.createMetadata({
-            status: response.status,
-            duration,
-            raw: parsed.raw
-          })
-        };
+        // Ne pas retry si erreur de validation de query
+        if (lastError.message.includes('Paramètres manquants') ||
+            lastError.message.includes('invalide')) {
+          throw lastError;
+        }
       }
+    }
 
-      this.log('Data loaded successfully', { duration });
+    // Toutes les tentatives ont échoué
+    const duration = Date.now() - startTime;
+    this.logError(`Échec après ${this.retryCount} retries`);
 
+    return {
+      success: false,
+      error: lastError?.message || 'Erreur de chargement après plusieurs tentatives',
+      metadata: this.createMetadata({ duration, attempts: this.retryCount + 1 })
+    };
+  }
+
+  /**
+   * Tentative unique de chargement
+   * @private
+   */
+  private async attemptLoad(startTime: number, attempt: number): Promise<ValidationResult> {
+    this.log('Loading data from n8n', {
+      requestId: this.context.requestId,
+      sessionId: this.context.sessionId,
+      attempt: attempt + 1
+    });
+
+    // ✅ CORRECTIF #1: Supprime doublon request_id, session_id optionnel
+    const query: Record<string, string> = {
+      req_id: this.context.requestId
+    };
+
+    // N'ajouter session_id que s'il existe
+    if (this.context.sessionId) {
+      query.session_id = this.context.sessionId;
+    }
+
+    // ✅ CORRECTIF #5: Passer this.timeout à fetchValidation
+    const response = await fetchValidation(query, this.timeout);
+    const duration = Date.now() - startTime;
+
+    // ✅ CORRECTIF #3: Gérer HTTP 204 (pas de données disponibles)
+    if (response.status === 204) {
+      this.log('HTTP 204 - Données non encore disponibles (traitement en cours?)');
       return {
         success: true,
-        data: parsed.data,
+        data: null,
         metadata: this.createMetadata({
-          status: response.status,
-          duration
+          status: 204,
+          duration,
+          message: 'Processing in progress or no content available',
+          attempt: attempt + 1
         })
       };
-
-    } catch (error: any) {
-      const duration = Date.now() - startTime;
-      this.logError('Load failed', error);
-
-      return {
-        success: false,
-        error: error.message || 'Erreur de chargement depuis n8n',
-        metadata: this.createMetadata({ duration })
-      };
     }
+
+    if (!response.text || response.text.trim().length === 0) {
+      this.logError('Empty response from n8n');
+      throw new Error('Réponse vide depuis n8n');
+    }
+
+    const parsed = safeParseJson(response.text);
+
+    if (!parsed.ok) {
+      this.logError('JSON parse failed', parsed.error);
+      throw new Error(`JSON invalide: ${parsed.error}`);
+    }
+
+    this.log('Data loaded successfully', { duration });
+
+    // ✅ CORRECTIF #4: Normaliser les données (dot notation → objet imbriqué)
+    const normalized = dotObjectToNested(parsed.data);
+    this.log('Data normalized', { keys: Object.keys(normalized) });
+
+    return {
+      success: true,
+      data: normalized,
+      metadata: this.createMetadata({
+        status: response.status,
+        duration,
+        normalized: true,
+        attempt: attempt + 1
+      })
+    };
   }
 
   async save(data: ExtractedData): Promise<SaveResult> {

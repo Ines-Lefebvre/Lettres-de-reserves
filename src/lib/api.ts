@@ -28,7 +28,8 @@ export function safeParseJson(raw: string) {
 }
 
 export function validateQuery(query: Record<string, string | undefined>) {
-  const required = ['session_id', 'req_id'];
+  // ✅ CORRECTIF #1: session_id devient optionnel
+  const required = ['req_id'];
   const missing = required.filter(key => !query[key]);
 
   if (missing.length > 0) {
@@ -36,21 +37,24 @@ export function validateQuery(query: Record<string, string | undefined>) {
   }
 
   // Validation des IDs (empêche injection)
-  const sessionId = query.session_id || '';
   const reqId = query.req_id || '';
-
-  if (!/^[a-zA-Z0-9-_]+$/.test(sessionId)) {
-    throw new Error('session_id invalide');
-  }
 
   if (!/^[a-zA-Z0-9-_]+$/.test(reqId)) {
     throw new Error('req_id invalide');
   }
 
+  // Validation session_id si présent
+  if (query.session_id && !/^[a-zA-Z0-9-_]+$/.test(query.session_id)) {
+    throw new Error('session_id invalide');
+  }
+
   return true;
 }
 
-export async function fetchValidation(query: Record<string, string | undefined>) {
+export async function fetchValidation(
+  query: Record<string, string | undefined>,
+  timeout: number = 60000  // ✅ CORRECTIF #5: Timeout configurable (défaut 60s)
+) {
   validateQuery(query);
   const params = new URLSearchParams(
     Object.entries(query).filter(([, v]) => v != null) as [string, string][]
@@ -65,17 +69,30 @@ export async function fetchValidation(query: Record<string, string | undefined>)
   });
   
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
+  // ✅ CORRECTIF #2 & #5: Timeout 60s pour laisser le temps à n8n (OCR ~20-30s)
+  const timer = setTimeout(() => {
+    console.warn(`⏱️ API - Timeout après ${timeout}ms`);
+    ctrl.abort();
+  }, timeout);
   
   try {
-    const res = await fetch(url, { 
-      method: 'GET', 
-      cache: 'no-store', 
-      signal: ctrl.signal, 
-      credentials: 'omit' 
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: ctrl.signal,
+      credentials: 'omit'
     });
+
+    clearTimeout(timer);
+
+    // ✅ CORRECTIF #3: Gérer HTTP 204 No Content (valide mais pas de données)
+    if (res.status === 204) {
+      console.log('📭 API - HTTP 204 No Content (aucune donnée disponible)');
+      return { status: 204, text: '' };
+    }
+
     const text = await res.text();
-    
+
     console.log('🔍 API - Response received:', {
       status: res.status,
       statusText: res.statusText,
@@ -83,8 +100,7 @@ export async function fetchValidation(query: Record<string, string | undefined>)
       textLength: text?.length || 0,
       textPreview: text?.substring(0, 200)
     });
-    
-    clearTimeout(timer);
+
     return { status: res.status, text };
   } catch (e) {
     console.error('❌ API - Fetch failed:', e);
