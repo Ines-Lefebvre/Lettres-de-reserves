@@ -215,27 +215,103 @@ export default function UnifiedValidationPage() {
    * Charge automatiquement au montage et lors du changement de stratégie
    */
   useEffect(() => {
-    if (hookRequestId) {
-      loadData();
-    }
-  }, [hookRequestId, selectedStrategy, loadData]);
+    let isMounted = true;
+
+    const loadDataSafely = async () => {
+      if (!hookRequestId) {
+        if (isMounted) {
+          setError('Request ID manquant');
+          setState('error');
+        }
+        return;
+      }
+
+      if (isMounted) {
+        setState('loading');
+        setError(null);
+      }
+
+      try {
+        let result;
+
+        switch (selectedStrategy) {
+          case 'n8n':
+            result = await loadFromN8n();
+            break;
+
+          case 'localStorage':
+            result = await loadFromLocalStorage();
+            break;
+
+          case 'supabase':
+            result = await loadFromSupabase();
+            break;
+
+          default:
+            throw new Error(`Stratégie inconnue: ${selectedStrategy}`);
+        }
+
+        // Vérifier si le composant est toujours monté avant setState
+        if (!isMounted) {
+          console.log('[UnifiedValidation] Component unmounted, skipping setState');
+          return;
+        }
+
+        if (result.success) {
+          setData(result.data || null);
+          setMetadata(result.metadata);
+          setState('success');
+        } else {
+          setError(result.error || 'Erreur de chargement');
+          setState('error');
+        }
+      } catch (err: any) {
+        if (!isMounted) {
+          console.log('[UnifiedValidation] Component unmounted, skipping error setState');
+          return;
+        }
+
+        console.error('[UnifiedValidation] Load error:', err);
+        setError(err.message || 'Erreur inattendue');
+        setState('error');
+      }
+    };
+
+    loadDataSafely();
+
+    // Cleanup
+    return () => {
+      isMounted = false;
+      console.log('[UnifiedValidation] 🧹 Cleanup: Component unmounting');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hookRequestId, selectedStrategy]);
 
   /**
    * Gère le changement de stratégie
    */
-  const handleStrategyChange = (strategy: StrategyType) => {
+  const handleStrategyChange = useCallback((strategy: StrategyType) => {
+    console.log('[UnifiedValidation] Strategy changed:', strategy);
     setSelectedStrategy(strategy);
     setState('idle');
     setData(null);
     setError(null);
-  };
+  }, []);
+
+  /**
+   * Handler générique pour les clics sur les boutons de stratégie
+   */
+  const handleStrategyClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    const strategy = e.currentTarget.dataset.strategy as StrategyType;
+    handleStrategyChange(strategy);
+  }, [handleStrategyChange]);
 
   /**
    * Retry en cas d'erreur
    */
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     loadData();
-  };
+  }, [loadData]);
 
   return (
     <AuthGuard>
@@ -263,19 +339,32 @@ export default function UnifiedValidationPage() {
             {/* Sélecteur de stratégie */}
             <div className="mb-8">
               <h2 className="font-semibold text-lg mb-4 text-center">Source de données</h2>
-              <div className="grid md:grid-cols-3 gap-4">
+              <div
+                className="grid md:grid-cols-3 gap-4"
+                role="tablist"
+                aria-label="Sources de données de validation"
+              >
                 {/* N8N Strategy */}
                 <button
-                  onClick={() => handleStrategyChange('n8n')}
+                  onClick={handleStrategyClick}
+                  data-strategy="n8n"
                   className={`p-6 rounded-lg border-2 transition-all duration-300 ${
                     selectedStrategy === 'n8n'
                       ? 'border-brand-accent bg-brand-accent bg-opacity-10'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  role="tab"
+                  aria-label="Charger les données depuis N8N Webhook"
+                  aria-selected={selectedStrategy === 'n8n'}
+                  aria-controls="validation-content"
+                  id="tab-n8n"
                 >
-                  <Cloud className={`w-8 h-8 mx-auto mb-2 ${
-                    selectedStrategy === 'n8n' ? 'text-brand-accent' : 'text-gray-400'
-                  }`} />
+                  <Cloud
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      selectedStrategy === 'n8n' ? 'text-brand-accent' : 'text-gray-400'
+                    }`}
+                    aria-hidden="true"
+                  />
                   <h3 className="font-semibold mb-1">N8N Webhook</h3>
                   <p className="text-sm text-gray-600">
                     Récupère depuis le serveur n8n
@@ -284,16 +373,25 @@ export default function UnifiedValidationPage() {
 
                 {/* LocalStorage Strategy */}
                 <button
-                  onClick={() => handleStrategyChange('localStorage')}
+                  onClick={handleStrategyClick}
+                  data-strategy="localStorage"
                   className={`p-6 rounded-lg border-2 transition-all duration-300 ${
                     selectedStrategy === 'localStorage'
                       ? 'border-brand-accent bg-brand-accent bg-opacity-10'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  role="tab"
+                  aria-label="Charger les données depuis le navigateur local"
+                  aria-selected={selectedStrategy === 'localStorage'}
+                  aria-controls="validation-content"
+                  id="tab-localStorage"
                 >
-                  <HardDrive className={`w-8 h-8 mx-auto mb-2 ${
-                    selectedStrategy === 'localStorage' ? 'text-brand-accent' : 'text-gray-400'
-                  }`} />
+                  <HardDrive
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      selectedStrategy === 'localStorage' ? 'text-brand-accent' : 'text-gray-400'
+                    }`}
+                    aria-hidden="true"
+                  />
                   <h3 className="font-semibold mb-1">LocalStorage</h3>
                   <p className="text-sm text-gray-600">
                     Charge depuis le navigateur
@@ -302,16 +400,25 @@ export default function UnifiedValidationPage() {
 
                 {/* Supabase Strategy */}
                 <button
-                  onClick={() => handleStrategyChange('supabase')}
+                  onClick={handleStrategyClick}
+                  data-strategy="supabase"
                   className={`p-6 rounded-lg border-2 transition-all duration-300 ${
                     selectedStrategy === 'supabase'
                       ? 'border-brand-accent bg-brand-accent bg-opacity-10'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
+                  role="tab"
+                  aria-label="Charger les données depuis la base de données Supabase"
+                  aria-selected={selectedStrategy === 'supabase'}
+                  aria-controls="validation-content"
+                  id="tab-supabase"
                 >
-                  <Database className={`w-8 h-8 mx-auto mb-2 ${
-                    selectedStrategy === 'supabase' ? 'text-brand-accent' : 'text-gray-400'
-                  }`} />
+                  <Database
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      selectedStrategy === 'supabase' ? 'text-brand-accent' : 'text-gray-400'
+                    }`}
+                    aria-hidden="true"
+                  />
                   <h3 className="font-semibold mb-1">Supabase</h3>
                   <p className="text-sm text-gray-600">
                     Charge depuis la base de données
