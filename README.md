@@ -1,30 +1,88 @@
-Lettres-de-reserves
+# Lettres de réserves - Application de validation
 
-## Optimisations vidéo
+Application simple pour uploader et valider des lettres de réserves via n8n.
 
-### Fichiers vidéo requis
-Placez les fichiers suivants dans le dossier `public/` :
+## 🚀 Démarrage
 
-- `lawyer-video-720.mp4` - Version mobile (720p)
-- `lawyer-video-1080.mp4` - Version desktop (1080p) 
-- `posters/lawyer-video-poster.jpg` - Image poster de la vidéo
+```bash
+# Installation
+npm install
 
-### Performances
-- Lazy loading avec IntersectionObserver
-- Sources adaptées mobile/desktop
-- Autoplay intelligent (desktop uniquement, respecte prefers-reduced-motion)
-- Preload metadata uniquement
+# Développement
+npm run dev
 
-## Configuration des variables d'environnement
+# Build production
+npm run build
+```
 
-### Variables requises pour la validation
-- `VITE_VALIDATION_ENDPOINT` - Endpoint n8n pour la récupération des données de validation (méthode GET)
-  - Exemple: `https://n8n.srv833062.hstgr.cloud/webhook/validation`
-  - Doit accepter les paramètres: `session_id`, `req_id`, `request_id`
-  - Doit retourner un JSON valide avec les données de validation
+## 📁 Structure
 
-### Gestion des erreurs de validation
-- Page `/validation-new` : Version robuste avec gestion d'erreurs explicites
-- Gestion des réponses vides, JSON invalides, erreurs CORS
-- Requêtes GET simples pour éviter les préflight OPTIONS
-- Anti-cache automatique avec paramètre `_cb`
+```
+src/
+├── pages/
+│   ├── Upload.tsx          ← Upload de fichiers
+│   └── ValidationPage.tsx  ← Validation des données
+├── utils/
+│   ├── n8nApi.ts          ← Client API n8n
+│   └── envDiagnostic.ts   ← Diagnostic des variables d'env
+├── components/
+│   ├── LoadingSpinner.tsx ← Spinner de chargement
+│   └── ValidationErrorBoundary.tsx ← Gestion d'erreurs
+└── App.tsx                 ← Routes
+```
+
+## 🔧 Configuration
+
+L'endpoint n8n est actuellement hardcodé dans `src/utils/n8nApi.ts` :
+
+```typescript
+const N8N_ENDPOINT = 'https://n8n.srv833062.hstgr.cloud/webhook/validation';
+```
+
+**Note** : Les variables d'environnement `VITE_*` ne sont pas fonctionnelles en production pour le moment. C'est pourquoi l'endpoint est hardcodé.
+
+Pour plus d'informations sur le problème des variables d'environnement, voir `TROUBLESHOOTING_ENV.md`.
+
+## 📊 Workflow
+
+1. **Upload** : L'utilisateur upload un fichier PDF
+2. **Traitement n8n** : n8n extrait les données du document
+3. **Validation** : Affichage des données extraites au format JSON
+4. **Actions** : Possibilité de copier le JSON ou recharger les données
+
+## 🎯 Simplicité
+
+Ce projet suit le principe KISS (Keep It Simple, Stupid) :
+
+- ✅ Pas de over-engineering
+- ✅ Code facile à comprendre et maintenir
+- ✅ Endpoint hardcodé temporairement pour débloquer la production
+- ✅ Ça marche en production !
+
+## 🔍 Diagnostic
+
+Au démarrage de l'application, un diagnostic des variables d'environnement est automatiquement affiché dans la console du navigateur. Cela permet de vérifier quelles variables sont disponibles.
+
+## 📝 Routes
+
+- `/` - Page d'upload
+- `/validation?requestId=XXX` - Page de validation des données
+
+## 🛠️ Technologies
+
+- **React** + **TypeScript**
+- **React Router** pour la navigation
+- **Tailwind CSS** pour le styling
+- **Vite** comme build tool
+- **n8n** pour le traitement backend
+
+## 📚 Documentation Technique
+
+- `TROUBLESHOOTING_ENV.md` - Guide de résolution des problèmes de variables d'environnement
+- `src/utils/envDiagnostic.ts` - Utilitaire de diagnostic des variables d'env
+
+## 🚨 Notes Importantes
+
+1. **Variables d'environnement** : Actuellement non fonctionnelles en production, d'où l'endpoint hardcodé
+2. **Architecture simple** : Refactorisation radicale pour une base de code maintenable
+3. **Production ready** : L'application fonctionne actuellement en production avec l'endpoint hardcodé
