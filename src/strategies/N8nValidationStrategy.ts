@@ -1,221 +1,240 @@
+import { ValidationStrategy } from './ValidationStrategy';
+import type { ValidationResult, ValidationData, ValidationContext } from './types';
+
 /**
- * Stratégie de validation utilisant n8n comme source de données
+ * Stratégie de validation via webhook n8n
  *
- * Cette stratégie récupère les données depuis un webhook n8n,
- * les valide et permet leur sauvegarde.
+ * ⚠️ NOTE IMPORTANTE : Endpoint hardcodé temporairement pour débloquer la production
  *
- * FONCTIONNALITÉS:
- * - Fetch depuis endpoint n8n
- * - Parsing JSON automatique
- * - Gestion timeout et retry
- * - Validation format
+ * RAISON : Les variables d'environnement VITE_* ne sont pas accessibles au runtime
+ * en production (undefined). Ce hardcode permet de débloquer immédiatement la prod.
+ *
+ * TODO : Refactor pour utiliser les variables d'environnement proprement une fois
+ * le problème d'injection des variables résolu.
  *
  * @class N8nValidationStrategy
  * @extends ValidationStrategy
  */
-
-import { ValidationStrategy } from './ValidationStrategy';
-import { fetchValidation, safeParseJson } from '../lib/api';
-import { dotObjectToNested } from '../utils/normalize';  // ✅ CORRECTIF #4
-import type {
-  ExtractedData,
-  ValidationResult,
-  SaveResult,
-  ValidationContext
-} from './types';
-
 export class N8nValidationStrategy extends ValidationStrategy {
-  readonly name = 'N8nValidationStrategy';
-  readonly description = 'Récupère les données depuis un webhook n8n';
-  readonly priority = 1;
+  // 🔥 HARDCODÉ POUR DÉBLOQUER LA PRODUCTION
+  private readonly ENDPOINT = 'https://n8n.srv833062.hstgr.cloud/webhook/validation';
+  private readonly TIMEOUT = 30000; // 30 secondes
 
-  private timeout: number;
-  private retryCount: number;
+  readonly name = 'N8nValidationStrategy';
+  readonly description = 'Récupère les données depuis un webhook n8n (endpoint hardcodé)';
+  readonly priority = 1;
 
   constructor(
     context: ValidationContext,
-    logDebug: boolean = false,
-    timeout: number = 60000,  // ✅ CORRECTIF #5: Défaut 60s (cohérent avec api.ts)
-    retryCount: number = 3
+    logDebug: boolean = false
   ) {
     super(context, logDebug);
-    this.timeout = timeout;
-    this.retryCount = retryCount;
+    this.log('🔧 Initialized with HARDCODED endpoint');
+    this.log('📍 Endpoint:', this.ENDPOINT);
+    console.warn('[N8nValidationStrategy] ⚠️ Using hardcoded endpoint - env vars not working');
   }
 
   protected getSourceType(): 'n8n' | 'localStorage' | 'supabase' {
     return 'n8n';
   }
 
+  /**
+   * Vérifie si la stratégie peut être utilisée
+   * ✅ TOUJOURS TRUE maintenant (endpoint hardcodé)
+   */
   async canUse(): Promise<boolean> {
-    const endpoint = import.meta.env.VITE_VALIDATION_ENDPOINT;
-    const hasEndpoint = !!endpoint && endpoint.trim().length > 0;
     const hasRequestId = !!this.context.requestId;
 
-    this.log('CanUse check', { hasEndpoint, hasRequestId });
-    return hasEndpoint && hasRequestId;
-  }
+    this.log('✅ canUse() = TRUE (hardcoded endpoint)');
+    this.log('Has requestId:', hasRequestId);
 
-  async load(): Promise<ValidationResult> {
-    this.emitLifecycleEvent('load', { requestId: this.context.requestId });
-    const startTime = Date.now();
-
-    // ✅ CORRECTIF #6: Boucle de retry avec backoff exponentiel
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
-      if (attempt > 0) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
-        this.log(`Retry ${attempt}/${this.retryCount} après ${delay}ms`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-
-      try {
-        const result = await this.attemptLoad(startTime, attempt);
-        return result;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        this.logError(`Tentative ${attempt + 1} échouée`, lastError.message);
-
-        // Ne pas retry si erreur de validation de query
-        if (lastError.message.includes('Paramètres manquants') ||
-            lastError.message.includes('invalide')) {
-          throw lastError;
-        }
-      }
-    }
-
-    // Toutes les tentatives ont échoué
-    const duration = Date.now() - startTime;
-    this.logError(`Échec après ${this.retryCount} retries`);
-
-    return {
-      success: false,
-      error: lastError?.message || 'Erreur de chargement après plusieurs tentatives',
-      metadata: this.createMetadata({ duration, attempts: this.retryCount + 1 })
-    };
+    // L'endpoint existe toujours (hardcodé), on vérifie juste le requestId
+    return hasRequestId;
   }
 
   /**
-   * Tentative unique de chargement
-   * @private
+   * Charge les données depuis n8n
    */
-  private async attemptLoad(startTime: number, attempt: number): Promise<ValidationResult> {
-    this.log('Loading data from n8n', {
-      requestId: this.context.requestId,
-      sessionId: this.context.sessionId,
-      attempt: attempt + 1
-    });
+  async load(): Promise<ValidationResult> {
+    this.emitLifecycleEvent('load', { requestId: this.context.requestId });
 
-    // ✅ CORRECTIF #1: Supprime doublon request_id, session_id optionnel
-    const query: Record<string, string> = {
-      req_id: this.context.requestId
-    };
+    const requestId = this.context.requestId;
+    this.log('🔄 Loading data for:', requestId);
+    this.log('📍 Using endpoint:', this.ENDPOINT);
 
-    // N'ajouter session_id que s'il existe
-    if (this.context.sessionId) {
-      query.session_id = this.context.sessionId;
-    }
-
-    // ✅ CORRECTIF #5: Passer this.timeout à fetchValidation
-    const response = await fetchValidation(query, this.timeout);
-    const duration = Date.now() - startTime;
-
-    // ✅ CORRECTIF #3: Gérer HTTP 204 (pas de données disponibles)
-    if (response.status === 204) {
-      this.log('HTTP 204 - Données non encore disponibles (traitement en cours?)');
+    if (!requestId || requestId.trim() === '') {
+      const error = 'Request ID est vide ou manquant';
+      this.logError(error);
       return {
-        success: true,
+        success: false,
+        error,
         data: null,
-        metadata: this.createMetadata({
-          status: 204,
-          duration,
-          message: 'Processing in progress or no content available',
-          attempt: attempt + 1
-        })
+        metadata: this.createMetadata({ error })
       };
     }
 
-    if (!response.text || response.text.trim().length === 0) {
-      this.logError('Empty response from n8n');
-      throw new Error('Réponse vide depuis n8n');
-    }
-
-    const parsed = safeParseJson(response.text);
-
-    if (!parsed.ok) {
-      this.logError('JSON parse failed', parsed.error);
-      throw new Error(`JSON invalide: ${parsed.error}`);
-    }
-
-    this.log('Data loaded successfully', { duration });
-
-    // ✅ CORRECTIF #4: Normaliser les données (dot notation → objet imbriqué)
-    const normalized = dotObjectToNested(parsed.data);
-    this.log('Data normalized', { keys: Object.keys(normalized) });
-
-    return {
-      success: true,
-      data: normalized,
-      metadata: this.createMetadata({
-        status: response.status,
-        duration,
-        normalized: true,
-        attempt: attempt + 1
-      })
-    };
-  }
-
-  async save(data: ExtractedData): Promise<SaveResult> {
-    this.emitLifecycleEvent('save', { dataKeys: Object.keys(data) });
-
-    this.log('Save not implemented for n8n strategy');
-
-    return {
-      success: false,
-      error: 'La sauvegarde vers n8n n\'est pas supportée'
-    };
-  }
-
-  async validate(data: ExtractedData): Promise<ValidationResult> {
-    this.emitLifecycleEvent('validate', { dataKeys: Object.keys(data) });
-
     try {
-      this.log('Validating data', { keys: Object.keys(data).length });
+      // Extraire session_id du requestId (format: req_SESSION_SUFFIX)
+      const parts = requestId.split('_');
+      const sessionId = parts.length >= 2 ? parts[1] : requestId;
 
+      // Construire l'URL avec tous les paramètres
+      const url = new URL(this.ENDPOINT);
+      url.searchParams.set('session_id', sessionId);
+      url.searchParams.set('req_id', requestId);
+      url.searchParams.set('request_id', requestId); // Redondant mais safe
+      url.searchParams.set('_cb', Date.now().toString()); // Cache busting
+
+      this.log('🌐 Fetching:', url.toString());
+
+      // Setup abort controller pour le timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        this.log('⏱️ Request aborted (timeout)');
+      }, this.TIMEOUT);
+
+      // Effectuer la requête
+      const startTime = Date.now();
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
+
+      this.log('📡 Response status:', response.status);
+      this.log('⏱️ Duration:', `${duration}ms`);
+
+      // Gérer les erreurs HTTP
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Endpoint n8n introuvable (404)');
+        } else if (response.status === 500) {
+          throw new Error('Erreur serveur n8n (500)');
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      }
+
+      // Lire la réponse
+      const text = await response.text();
+      this.log('📄 Response text length:', text.length);
+
+      if (!text || text.trim() === '') {
+        throw new Error('Réponse vide du serveur n8n');
+      }
+
+      // Parser le JSON
+      let data: ValidationData;
+      try {
+        data = JSON.parse(text);
+        this.log('✅ JSON parsed successfully');
+        this.log('Data keys:', Object.keys(data));
+      } catch (parseError) {
+        this.logError('JSON parse error:', parseError);
+        throw new Error('Réponse n8n invalide (JSON malformé)');
+      }
+
+      // Valider que les données contiennent quelque chose
       if (!data || typeof data !== 'object') {
-        return {
-          success: false,
-          error: 'Données invalides: doit être un objet',
-          metadata: this.createMetadata()
-        };
+        throw new Error('Format de données invalide (attendu: objet JSON)');
       }
 
       if (Object.keys(data).length === 0) {
-        return {
-          success: false,
-          error: 'Données vides',
-          metadata: this.createMetadata()
-        };
+        this.log('⚠️ Empty data object received');
       }
 
-      this.log('Validation passed');
+      this.log('🎉 Load successful');
 
       return {
         success: true,
         data,
-        metadata: this.createMetadata()
+        error: null,
+        metadata: this.createMetadata({
+          status: response.status,
+          duration,
+          requestId,
+          sessionId,
+          dataKeys: Object.keys(data).length
+        })
       };
 
-    } catch (error: any) {
-      this.logError('Validation failed', error);
+    } catch (error) {
+      this.logError('❌ Load error:', error);
+
+      let errorMessage = 'Erreur de chargement depuis n8n';
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = `Timeout : Le serveur n8n met trop de temps à répondre (> ${this.TIMEOUT}ms)`;
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Impossible de contacter le serveur n8n (réseau ou CORS)';
+        } else {
+          errorMessage = error.message;
+        }
+      }
 
       return {
         success: false,
-        error: error.message || 'Erreur de validation',
-        metadata: this.createMetadata()
+        error: errorMessage,
+        data: null,
+        metadata: this.createMetadata({
+          error: errorMessage,
+          endpoint: this.ENDPOINT
+        })
       };
     }
+  }
+
+  /**
+   * Sauvegarde (non implémenté pour n8n)
+   */
+  async save(data: ValidationData): Promise<{ success: boolean; error?: string }> {
+    this.emitLifecycleEvent('save', { dataKeys: Object.keys(data) });
+
+    this.log('⚠️ Save not implemented for n8n strategy');
+
+    return {
+      success: false,
+      error: 'La sauvegarde n\'est pas supportée par la stratégie n8n'
+    };
+  }
+
+  /**
+   * Validation (toujours valide si données présentes)
+   */
+  async validate(data: ValidationData): Promise<{ valid: boolean; errors: string[] }> {
+    this.emitLifecycleEvent('validate', { dataKeys: Object.keys(data) });
+
+    this.log('Validating data');
+
+    if (!data || typeof data !== 'object') {
+      return {
+        valid: false,
+        errors: ['Données invalides ou manquantes']
+      };
+    }
+
+    if (Object.keys(data).length === 0) {
+      this.log('⚠️ Empty data object');
+      return {
+        valid: false,
+        errors: ['Objet de données vide']
+      };
+    }
+
+    // Validation basique : si les données existent et sont un objet, c'est valide
+    this.log('✅ Validation passed');
+    return {
+      valid: true,
+      errors: []
+    };
   }
 }
 
