@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ChevronUp, Upload, Menu, X } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import ValidationErrorBoundary from './components/ValidationErrorBoundary';
 import RequestIdDebugPanel from './components/RequestIdDebugPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -399,7 +400,7 @@ function App() {
   const isDevelopment = import.meta.env.DEV;
 
   return (
-    <>
+    <ValidationErrorBoundary>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -425,7 +426,7 @@ function App() {
 
       {/* Panneau de debug RequestId - uniquement en développement */}
       {isDevelopment && <RequestIdDebugPanel />}
-    </>
+    </ValidationErrorBoundary>
   );
 }
 
