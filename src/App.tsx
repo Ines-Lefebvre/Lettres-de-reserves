@@ -14,6 +14,7 @@ import ValidationPageNew from './pages/ValidationPageNew';
 import ValidationPageFullDB from './pages/ValidationPageFullDB';
 import UnifiedValidationPage from './pages/UnifiedValidationPage';
 import LoginPage from './pages/Login';
+import { logEnvironmentDiagnostic } from './utils/envDiagnostic';
 import './utils/debugUtils';
 
 const HomePage: React.FC = () => {
@@ -398,6 +399,12 @@ const HomePage: React.FC = () => {
 function App() {
   // Activer le panneau de debug uniquement en mode développement
   const isDevelopment = import.meta.env.DEV;
+
+  // Diagnostic des variables d'environnement au démarrage
+  useEffect(() => {
+    console.log('🚀 Application démarrée');
+    logEnvironmentDiagnostic();
+  }, []);
 
   return (
     <ValidationErrorBoundary>
